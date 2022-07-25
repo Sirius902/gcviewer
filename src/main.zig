@@ -2,8 +2,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_info = @import("build_info");
 const clap = @import("clap");
-const Input = @import("adapter").Input;
-const Calibration = @import("adapter").Calibration;
+const Input = @import("adapter.zig").Input;
+const Calibration = @import("adapter.zig").Calibration;
 const display = @import("display.zig");
 const Atomic = std.atomic.Atomic;
 

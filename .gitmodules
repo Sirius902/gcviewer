@@ -1,6 +1,3 @@
-[submodule "zusb"]
-	path = pkg/zusb
-	url = https://github.com/Sirius902/zusb.git
 [submodule "zgl"]
 	path = pkg/zgl
 	url = https://github.com/ziglibs/zgl.git
@@ -11,6 +8,3 @@
 [submodule "zig-clap"]
 	path = pkg/zig-clap
 	url = https://github.com/Hejsil/zig-clap.git
-[submodule "grindel"]
-	path = pkg/grindel
-	url = https://github.com/Sirius902/grindel.git
