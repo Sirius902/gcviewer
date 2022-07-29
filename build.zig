@@ -130,7 +130,9 @@ const BuildInfoStep = struct {
             "describe",
             "--always",
             "--dirty",
-            "--tags",
+            "--abbrev=7",
+            "--exclude",
+            "*",
         });
 
         const commit_hash = try execGetStdOut(allocator, &[_][]const u8{
