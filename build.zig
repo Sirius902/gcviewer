@@ -5,6 +5,9 @@ const LibExeObjStep = std.build.LibExeObjStep;
 const OptionsStep = std.build.OptionsStep;
 
 pub fn build(b: *Builder) void {
+    // TODO: Use stage1 until stage2 can build gcviewer.
+    b.use_stage1 = true;
+
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
