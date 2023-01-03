@@ -636,7 +636,7 @@ dependencies = [
 [[package]]
 name = "gcfeeder-core"
 version = "3.0.0"
-source = "git+https://github.com/Sirius902/gcfeeder#12a8a855c3c13274032d116f7e99b8c7cf9307f0"
+source = "git+https://github.com/Sirius902/gcfeeder#326233614bcc3fbdaa56953116d2d98007d9fce2"
 dependencies = [
  "conv",
  "crossbeam",
@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "gcviewer"
-version = "0.1.0"
+version = "3.0.0"
 dependencies = [
  "bincode",
  "env_logger",
