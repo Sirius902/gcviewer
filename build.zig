@@ -5,9 +5,6 @@ const LibExeObjStep = std.build.LibExeObjStep;
 const OptionsStep = std.build.OptionsStep;
 
 pub fn build(b: *Builder) void {
-    // TODO: Use stage1 until stage2 can build gcviewer.
-    b.use_stage1 = true;
-
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
@@ -145,8 +142,8 @@ const BuildInfoStep = struct {
         });
 
         return BuildInfo{
-            .version = std.mem.trim(u8, version, &std.ascii.spaces),
-            .usercontent_ref = std.mem.trim(u8, commit_hash, &std.ascii.spaces),
+            .version = std.mem.trim(u8, version, &std.ascii.whitespace),
+            .usercontent_ref = std.mem.trim(u8, commit_hash, &std.ascii.whitespace),
         };
     }
 

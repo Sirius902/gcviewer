@@ -116,7 +116,7 @@ pub const Input = struct {
         var input: Input = undefined;
 
         inline for (@typeInfo(Input).Struct.fields) |field, i| {
-            @field(input, field.name) = switch (field.field_type) {
+            @field(input, field.name) = switch (field.type) {
                 u8 => buffer[i],
                 bool => buffer[i] != 0,
                 else => @compileError("Unsupported type"),
