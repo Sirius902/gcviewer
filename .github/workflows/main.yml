@@ -10,22 +10,24 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      CARGO_BUILD_TARGET: "x86_64-pc-windows-msvc"
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        submodules: "recursive"
-    - name: Setup Zig
-      uses: goto-bus-stop/setup-zig@v1
-      with:
-        version: master
-    - name: Zig Build
-      run: zig build -Dtarget=x86_64-windows -Dcpu=baseline
+      uses: actions/checkout@v3
+    - name: Build
+      run: cargo build
+    - name: Run Tests
+      run: cargo test
+    - name: Clippy Lints
+      run: cargo clippy
     - name: Upload gcviewer
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: gcviewer
-        path: zig-out/bin
+        path: |
+          target/${{ env.CARGO_BUILD_TARGET }}/debug/gcviewer.exe
+          target/${{ env.CARGO_BUILD_TARGET }}/debug/gcviewer.pdb
     - name: Upload Themes
       uses: actions/upload-artifact@v2
       with:
