@@ -41,7 +41,7 @@ async fn run() {
         Event::RedrawRequested(window_id) if window_id == window.id() => {
             state.update();
             match state.render() {
-                Ok(()) => {}
+                Ok(()) | Err(wgpu::SurfaceError::Outdated) => {}
                 Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
                 Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                 Err(e) => log::error!("{:?}", e),
