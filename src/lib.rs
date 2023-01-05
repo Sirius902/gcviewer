@@ -5,7 +5,7 @@ pub mod state;
 
 pub const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [0.0, 0.5, 0.0],
+        position: [-0.5, 0.5, 0.0],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
@@ -16,7 +16,13 @@ pub const VERTICES: &[Vertex] = &[
         position: [0.5, -0.5, 0.0],
         color: [0.0, 0.0, 1.0],
     },
+    Vertex {
+        position: [0.5, 0.5, 0.0],
+        color: [0.29, 0.0, 0.69],
+    },
 ];
+
+pub const INDICES: &[u16] = &[0, 1, 3, 1, 2, 3];
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
