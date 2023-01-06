@@ -64,13 +64,9 @@ impl State {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
         let camera = Camera {
-            eye: (0.0, 0.0, 2.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
             aspect: config.width as f32 / config.height as f32,
-            fovy: 45.0,
             znear: 0.1,
-            zfar: 100.0,
+            zfar: 10.0,
         };
 
         let mut camera_uniform = CameraUniform::default();
@@ -225,7 +221,7 @@ impl State {
             bytemuck::cast_slice(&[self.config.width, self.config.height]),
         );
 
-        self.camera.aspect = self.config.width as f32 / self.config.height as f32;
+        self.camera.update(&self.config);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,

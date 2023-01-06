@@ -1,21 +1,44 @@
 use crate::OPENGL_TO_WGPU_MATRIX;
 
 pub struct Camera {
-    pub eye: cgmath::Point3<f32>,
-    pub target: cgmath::Point3<f32>,
-    pub up: cgmath::Vector3<f32>,
     pub aspect: f32,
-    pub fovy: f32,
     pub znear: f32,
     pub zfar: f32,
 }
 
 impl Camera {
     pub fn build_projection_view_matrix(&self) -> cgmath::Matrix4<f32> {
-        let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        let view = cgmath::Matrix4::from_translation(cgmath::Vector3::new(0.0, 0.0, -1.0));
+
+        let tw = 2.0f32;
+        let th = 1.0f32;
+        let taspect = tw / th;
+
+        let proj = if self.aspect > taspect {
+            cgmath::ortho(
+                -self.aspect / taspect * tw / 2.0,
+                self.aspect / taspect * tw / 2.0,
+                -th / 2.0,
+                th / 2.0,
+                self.znear,
+                self.zfar,
+            )
+        } else {
+            cgmath::ortho(
+                -tw / 2.0,
+                tw / 2.0,
+                -taspect / self.aspect * th / 2.0,
+                taspect / self.aspect * th / 2.0,
+                self.znear,
+                self.zfar,
+            )
+        };
 
         OPENGL_TO_WGPU_MATRIX * proj * view
+    }
+
+    pub fn update(&mut self, config: &wgpu::SurfaceConfiguration) {
+        self.aspect = config.width as f32 / config.height as f32;
     }
 }
 
