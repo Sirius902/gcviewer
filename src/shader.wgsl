@@ -16,7 +16,7 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
-};
+}
 
 // SRGB -> RGB
 fn color_correct(v: f32) -> f32 {
