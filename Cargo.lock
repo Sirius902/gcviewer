@@ -669,7 +669,7 @@ dependencies = [
 [[package]]
 name = "gcfeeder-core"
 version = "3.0.0"
-source = "git+https://github.com/Sirius902/gcfeeder#f60badf7dfa40c97749dd8a9b751ab12a88be96b"
+source = "git+https://github.com/Sirius902/gcfeeder#5f34bbd61cfc5300d6b446446837898994f56f6f"
 dependencies = [
  "conv",
  "crossbeam",
