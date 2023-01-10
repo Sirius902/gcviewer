@@ -28,6 +28,15 @@ fn color_correct(v: f32) -> f32 {
     return pow((v + 0.055) / 1.055, 2.4);
 }
 
+fn color_correct4(v: vec4<f32>) -> vec4<f32> {
+    return vec4<f32>(
+        color_correct(v.r),
+        color_correct(v.g),
+        color_correct(v.b),
+        v.a,
+    );
+}
+
 @vertex
 fn vs_main(model: VertexInput) -> VertexOutput {
     var out: VertexOutput;
@@ -39,6 +48,10 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let sample = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    return sample.rrrr;
+    let dist = textureSample(t_diffuse, s_diffuse, in.tex_coords).r;
+    if dist > 0.5 {
+        return color_correct4(vec4<f32>(0.3, 0.0, 0.69, 1.0));
+    } else {
+        discard;
+    }
 }
