@@ -1,5 +1,6 @@
 use std::time;
 
+use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -28,6 +29,7 @@ pub struct State {
     diffuse_bind_group: wgpu::BindGroup,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
+    model_matrix_buffer: wgpu::Buffer,
     resolution_buffer: wgpu::Buffer,
     time_buffer: wgpu::Buffer,
     which_buffer: wgpu::Buffer,
@@ -171,6 +173,14 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        let model_matrix_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Model Matrix Buffer"),
+            contents: bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(
+                cgmath::Matrix4::from_nonuniform_scale(0.5, 0.5, 1.0),
+            )]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
         let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
             contents: bytemuck::cast_slice(&[config.width, config.height]),
@@ -205,7 +215,7 @@ impl State {
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        visibility: wgpu::ShaderStages::VERTEX,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -233,6 +243,16 @@ impl State {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
                 label: Some("main_bind_group_layout"),
             });
@@ -246,14 +266,18 @@ impl State {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: resolution_buffer.as_entire_binding(),
+                    resource: model_matrix_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: time_buffer.as_entire_binding(),
+                    resource: resolution_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
+                    resource: time_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
                     resource: which_buffer.as_entire_binding(),
                 },
             ],
@@ -328,6 +352,7 @@ impl State {
             diffuse_bind_group,
             camera_uniform,
             camera_buffer,
+            model_matrix_buffer,
             resolution_buffer,
             time_buffer,
             which_buffer,

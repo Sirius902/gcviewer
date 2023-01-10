@@ -9,10 +9,12 @@ struct CameraUniform {
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 @group(1) @binding(1)
-var<uniform> resolution: vec2<f32>;
+var<uniform> model_matrix: mat4x4<f32>;
 @group(1) @binding(2)
-var<uniform> time: f32;
+var<uniform> resolution: vec2<f32>;
 @group(1) @binding(3)
+var<uniform> time: f32;
+@group(1) @binding(4)
 var<uniform> which: u32;
 
 /*
@@ -60,7 +62,7 @@ fn rgb_to_srgb4(v: vec4<f32>) -> vec4<f32> {
 @vertex
 fn vs_main(model: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = camera.view_proj * vec4<f32>(model.position, 1.0);
+    out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
     out.position = model.position;
     out.tex_coords = model.tex_coords;
     return out;
@@ -68,13 +70,14 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let border = 0.15;
     // let r = dot(in.position, in.position);
-    // if r > pow(0.5, 2.0) || r < pow(0.5 - r * 0.1, 2.0) {
+    // if r > pow(0.5, 2.0) || r < pow(0.5 - r * border, 2.0) {
     //     discard;
     // }
 
     let dist = textureSample(t_diffuse, s_diffuse, in.tex_coords).r;
-    if dist < 0.5 || dist > 0.5 + 0.1 {
+    if dist < 0.5 || dist > 0.5 + border {
         discard;
     }
 
