@@ -1,6 +1,5 @@
 use std::time;
 
-use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 

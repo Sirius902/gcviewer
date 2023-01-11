@@ -30,9 +30,9 @@ Corresponding `which` values
 8 -> Left Trigger
 9 -> Right Trigger
 10 -> Dpad Up
-11 -> Dpad Down
-12 -> Dpad Left
-13 -> Dpad Right
+11 -> Dpad Left
+12 -> Dpad Right
+13 -> Dpad Down
 */
 
 struct VertexInput {
