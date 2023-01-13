@@ -12,7 +12,7 @@ pollster = "0.2.5"
 wgpu = "0.14.2"
 winit = "0.27.5"
 
-[dependencies.gcfeeder-core]
+[dependencies.gcinput]
 git = "https://github.com/Sirius902/gcfeeder"
 
 [dependencies.bytemuck]
