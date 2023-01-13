@@ -62,8 +62,8 @@ fn rgb_to_srgb4(v: vec4<f32>) -> vec4<f32> {
 }
 
 fn clip_circle_button(in: VertexOutput) {
-    let r = dot(in.position, in.position);
-    if r > pow(0.5, 2.0) || r < pow(0.5 - r * border, 2.0) {
+    let r = length(in.position);
+    if r > 0.5 || r < 0.5 - (0.5 * r) * border {
         discard;
     }
 }
