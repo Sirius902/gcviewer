@@ -35,6 +35,8 @@ Corresponding `which` values
 13 -> Dpad Down
 */
 
+let border = 0.15;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
@@ -59,6 +61,20 @@ fn rgb_to_srgb4(v: vec4<f32>) -> vec4<f32> {
     );
 }
 
+fn clip_circle_button(in: VertexOutput) {
+    let r = dot(in.position, in.position);
+    if r > pow(0.5, 2.0) || r < pow(0.5 - r * border, 2.0) {
+        discard;
+    }
+}
+
+fn clip_sdf_button(in: VertexOutput) {
+    let dist = textureSample(t_diffuse, s_diffuse, in.tex_coords).r;
+    if dist < 0.5 || dist > 0.5 + border {
+        discard;
+    }
+}
+
 @vertex
 fn vs_main(model: VertexInput) -> VertexOutput {
     var out: VertexOutput;
@@ -70,18 +86,19 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let border = 0.15;
-    // let r = dot(in.position, in.position);
-    // if r > pow(0.5, 2.0) || r < pow(0.5 - r * border, 2.0) {
-    //     discard;
-    // }
-
-    let dist = textureSample(t_diffuse, s_diffuse, in.tex_coords).r;
-    if dist < 0.5 || dist > 0.5 + border {
-        discard;
+    switch which {
+        case 0u, 1u, 4u, 10u, 11u, 12u, 13u { // A, B, Start, Dpad
+            clip_circle_button(in);
+        }
+        case 2u, 3u, 5u { // X, Y, Z
+            clip_sdf_button(in);
+        }
+        default {
+            // TODO: Implement drawing sticks and triggers.
+            clip_circle_button(in);
+        }
     }
 
-    // let color = vec4<f32>((sin(time) + 1.0) / 2.0, in.position.y, 1.0, 1.0);
     var color: vec4<f32>;
     switch which {
         case 0u { // A
