@@ -16,6 +16,9 @@ winit = "0.27.5"
 [dependencies.gcinput]
 git = "https://github.com/Sirius902/gcfeeder"
 
+[dependencies.panic-log]
+git = "https://github.com/Sirius902/gcfeeder"
+
 [dependencies.bytemuck]
 version = "1.12.3"
 features = ["derive"]

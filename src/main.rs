@@ -20,6 +20,7 @@ use winit::{
 };
 
 fn main() {
+    std::panic::set_hook(Box::new(panic_log::hook));
     env_logger::init();
     pollster::block_on(run());
 }
