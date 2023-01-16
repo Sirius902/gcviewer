@@ -85,7 +85,8 @@ fn border_width(in: VertexOutput) -> f32 {
 fn clip_circle_button(in: VertexOutput) {
     let r = length(in.position);
     // TODO: Make border width more accurate.
-    if r > 0.5 || ((in.button_pressed == 0u) && r < 0.5 - (0.725 * r) * border_width(in)) {
+    if r > 0.5 || ((in.button_pressed == 0u)
+        && r < 0.5 - (0.725 * r) * border_width(in)) {
         discard;
     }
 }
@@ -130,7 +131,8 @@ fn clip_stick(in: VertexOutput) {
     let scaled_uv = (in.tex_coords - 0.5) / 0.85 + 0.5;
     let sdf_dist = textureSample(octagon_t_diffuse, s_diffuse, scaled_uv).r;
 
-    if (dist < 0.0 && (sdf_dist < 0.5 - bw || sdf_dist > 0.5)) || (!is_c_stick && dist > radius * bw) {
+    if (dist < 0.0 && (sdf_dist < 0.5 - bw || sdf_dist > 0.5))
+        || (!is_c_stick && dist > radius * bw) {
         discard;
     }
 }
@@ -150,7 +152,8 @@ fn clip_trigger(in: VertexOutput) {
         let pos = in.position + vec2<f32>(0.5 - radius, 0.0);
         let dist = radius - length(pos);
 
-        if dist < 0.0 || ((in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale) && (dist >= rbw)) {
+        if dist < 0.0 || ((in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale)
+            && (dist >= rbw)) {
             discard;
         }
     } else if in.position.x >= 0.5 - radius {
@@ -158,12 +161,14 @@ fn clip_trigger(in: VertexOutput) {
         let pos = in.position - vec2<f32>(0.5 - radius, 0.0);
         let dist = radius - length(pos);
 
-        if dist < 0.0 || ((in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale) && (dist >= rbw)) {
+        if dist < 0.0 || ((in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale)
+            && (dist >= rbw)) {
             discard;
         }
     } else {
         // clip middle
-        if (abs(in.position.y) > radius) || ((abs(in.position.y) <= radius - rbw) && (in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale)) {
+        if (abs(in.position.y) > radius) || ((abs(in.position.y) <= radius - rbw)
+            && (in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale)) {
             discard;
         }
     }
