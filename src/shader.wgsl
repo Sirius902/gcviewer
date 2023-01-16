@@ -55,7 +55,7 @@ struct InstanceInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) position: vec3<f32>,
+    @location(0) position: vec2<f32>,
     @location(1) tex_coords: vec2<f32>,
     @location(2) scale: f32,
     @location(3) which: u32,
@@ -124,7 +124,7 @@ fn clip_stick(in: VertexOutput) {
         radius *= 0.8;
     }
 
-    let center = in.position.xy + in.stick_position;
+    let center = in.position + in.stick_position;
     let dist = radius - length(center);
 
     let scaled_uv = (in.tex_coords - 0.5) / 0.85 + 0.5;
@@ -136,8 +136,37 @@ fn clip_stick(in: VertexOutput) {
 }
 
 fn clip_trigger(in: VertexOutput) {
-    // TODO: Implement
-    discard;
+    let bw = border_width(in);
+    let fill = in.trigger_fill;
+    let radius = 0.725 * bw;
+    // fixes border width being too thin
+    let rbw = 1.5 * radius * bw;
+
+    let threshold = 0.75;
+    let scale = 1.0 / threshold;
+
+    if in.position.x <= radius - 0.5 {
+        // clip left
+        let pos = in.position + vec2<f32>(0.5 - radius, 0.0);
+        let dist = radius - length(pos);
+
+        if dist < 0.0 || ((in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale) && (dist >= rbw)) {
+            discard;
+        }
+    } else if in.position.x >= 0.5 - radius {
+        // clip right
+        let pos = in.position - vec2<f32>(0.5 - radius, 0.0);
+        let dist = radius - length(pos);
+
+        if dist < 0.0 || ((in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale) && (dist >= rbw)) {
+            discard;
+        }
+    } else {
+        // clip middle
+        if (abs(in.position.y) > radius) || ((abs(in.position.y) <= radius - rbw) && (in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale)) {
+            discard;
+        }
+    }
 }
 
 @vertex
@@ -154,7 +183,7 @@ fn vs_main(
 
     var out: VertexOutput;
     out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
-    out.position = model.position;
+    out.position = model.position.xy;
     out.tex_coords = model.tex_coords;
     out.scale = instance.scale;
     out.which = instance.which;
