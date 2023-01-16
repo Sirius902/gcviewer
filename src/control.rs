@@ -19,7 +19,7 @@ impl Instance {
                 (*button as u32, which_texture, *pressed, 0.0, [0.0, 0.0])
             }
             Control::Stick { stick, position } => {
-                (*stick as u32, 2, false, 0.0, (*position).into())
+                (*stick as u32, 0, false, 0.0, (*position).into())
             }
             Control::Trigger {
                 trigger,

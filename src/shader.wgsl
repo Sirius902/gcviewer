@@ -85,7 +85,7 @@ fn border_width(in: VertexOutput) -> f32 {
 fn clip_circle_button(in: VertexOutput) {
     let r = length(in.position);
     // TODO: Make border width more accurate.
-    if r > 0.5 || ((in.button_pressed == 0u) && r < 0.5 - (0.75 * r) * border_width(in)) {
+    if r > 0.5 || ((in.button_pressed == 0u) && r < 0.5 - (0.725 * r) * border_width(in)) {
         discard;
     }
 }
@@ -114,6 +114,29 @@ fn clip_sdf_button(in: VertexOutput) {
     if dist < 0.5 - border_width(in) || ((in.button_pressed == 0u) && dist > 0.5) {
         discard;
     }
+}
+
+fn clip_stick(in: VertexOutput) {
+    let bw = border_width(in);
+    let is_c_stick = in.which == 7u;
+    var radius = 0.265;
+    if is_c_stick {
+        radius *= 0.8;
+    }
+
+    let center = in.position.xy + in.stick_position;
+    let dist = radius - length(center);
+
+    let sdf_dist = textureSample(octagon_t_diffuse, s_diffuse, in.tex_coords).r;
+
+    if (dist < 0.0 && (sdf_dist < 0.5 - bw || sdf_dist > 0.5)) || (!is_c_stick && dist > radius * bw) {
+        discard;
+    }
+}
+
+fn clip_trigger(in: VertexOutput) {
+    // TODO: Implement
+    discard;
 }
 
 @vertex
@@ -150,13 +173,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         case 2u, 3u, 5u { // X, Y, Z
             clip_sdf_button(in);
         }
-        case 6u, 7u {
-            clip_sdf_button(in);
+        case 6u, 7u { // Main Stick, C Stick
+            clip_stick(in);
         }
-        default {
-            // TODO: Implement drawing sticks and triggers.
-            discard;
+        case 8u, 9u { // Left Trigger, Right Trigger
+            clip_trigger(in);
         }
+        default {}
     }
 
     var color: vec4<f32>;

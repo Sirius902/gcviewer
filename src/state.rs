@@ -72,66 +72,62 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let (diffuse_sampler, texture_views) = {
-            let texture_views = [
-                (BEAN_SDF_IMAGE, "bean_sdf"),
-                (Z_BUTTON_SDF_IMAGE, "z_button_sdf"),
-                (OCTAGON_SDF_IMAGE, "octagon_sdf"),
-            ]
-            .iter()
-            .map(|(img_buf, name)| {
-                let img = image::load_from_memory(img_buf).expect("failed to decode sdf image");
-                let sdf = img.to_luma8();
-                let dimensions = sdf.dimensions();
+        let texture_views = [
+            (BEAN_SDF_IMAGE, "bean_sdf"),
+            (Z_BUTTON_SDF_IMAGE, "z_button_sdf"),
+            (OCTAGON_SDF_IMAGE, "octagon_sdf"),
+        ]
+        .iter()
+        .map(|(img_buf, name)| {
+            let img = image::load_from_memory(img_buf).expect("failed to decode sdf image");
+            let sdf = img.to_luma8();
+            let dimensions = sdf.dimensions();
 
-                let texture_size = wgpu::Extent3d {
-                    width: dimensions.0,
-                    height: dimensions.1,
-                    depth_or_array_layers: 1,
-                };
+            let texture_size = wgpu::Extent3d {
+                width: dimensions.0,
+                height: dimensions.1,
+                depth_or_array_layers: 1,
+            };
 
-                let diffuse_texture = device.create_texture(&wgpu::TextureDescriptor {
-                    size: texture_size,
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::R8Unorm,
-                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                    label: Some(name),
-                });
-
-                queue.write_texture(
-                    wgpu::ImageCopyTexture {
-                        texture: &diffuse_texture,
-                        mip_level: 0,
-                        origin: wgpu::Origin3d::ZERO,
-                        aspect: wgpu::TextureAspect::All,
-                    },
-                    &sdf,
-                    wgpu::ImageDataLayout {
-                        offset: 0,
-                        bytes_per_row: std::num::NonZeroU32::new(dimensions.0),
-                        rows_per_image: std::num::NonZeroU32::new(dimensions.1),
-                    },
-                    texture_size,
-                );
-
-                diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default())
-            })
-            .collect::<Vec<_>>();
-
-            let diffuse_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-                address_mode_u: wgpu::AddressMode::ClampToEdge,
-                address_mode_v: wgpu::AddressMode::ClampToEdge,
-                address_mode_w: wgpu::AddressMode::ClampToEdge,
-                mag_filter: wgpu::FilterMode::Linear,
-                min_filter: wgpu::FilterMode::Nearest,
-                mipmap_filter: wgpu::FilterMode::Nearest,
-                ..Default::default()
+            let diffuse_texture = device.create_texture(&wgpu::TextureDescriptor {
+                size: texture_size,
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::R8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                label: Some(name),
             });
 
-            (diffuse_sampler, texture_views)
-        };
+            queue.write_texture(
+                wgpu::ImageCopyTexture {
+                    texture: &diffuse_texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &sdf,
+                wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: std::num::NonZeroU32::new(dimensions.0),
+                    rows_per_image: std::num::NonZeroU32::new(dimensions.1),
+                },
+                texture_size,
+            );
+
+            diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default())
+        })
+        .collect::<Vec<_>>();
+
+        let diffuse_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
