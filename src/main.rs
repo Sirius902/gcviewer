@@ -10,6 +10,7 @@ use std::{
     time::Duration,
 };
 
+use clap::Parser;
 use enclose::enclose;
 use gcinput::Input;
 use gcviewer::state::State;
@@ -31,7 +32,20 @@ fn main() {
     .expect("Failed to set current working directory");
 
     env_logger::init();
-    pollster::block_on(run());
+
+    let args = Args::parse();
+    pollster::block_on(run(&args));
+}
+
+#[derive(Parser)]
+struct Args {
+    #[arg(
+        short,
+        long,
+        default_value_t = 4096,
+        help = "Uses the specified port for the UDP server."
+    )]
+    port: u16,
 }
 
 struct SocketContext {
@@ -40,7 +54,7 @@ struct SocketContext {
     stop_flag: AtomicBool,
 }
 
-async fn run() {
+async fn run(args: &Args) {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(format!("gcviewer | {}", env!("VERSION")))
@@ -51,11 +65,10 @@ async fn run() {
         .build(&event_loop)
         .unwrap();
 
-    let port = 4096;
-    let socket = UdpSocket::bind(("127.0.0.1", port)).unwrap_or_else(|e| {
+    let socket = UdpSocket::bind(("127.0.0.1", args.port)).unwrap_or_else(|e| {
         panic!(
             "Failed to create to input server on localhost:{}: {}",
-            port, e
+            args.port, e
         );
     });
     socket
