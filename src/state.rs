@@ -1,4 +1,4 @@
-use std::time;
+use std::{ops::Mul, time};
 
 use wgpu::util::DeviceExt;
 use winit::window::Window;
@@ -30,6 +30,7 @@ pub struct State {
     camera_buffer: wgpu::Buffer,
     model_matrix_buffer: wgpu::Buffer,
     resolution_buffer: wgpu::Buffer,
+    scale_buffer: wgpu::Buffer,
     time_buffer: wgpu::Buffer,
     which_buffer: wgpu::Buffer,
     main_bind_group: wgpu::BindGroup,
@@ -172,17 +173,28 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        let scale = 0.302;
         let model_matrix_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Model Matrix Buffer"),
-            contents: bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(
-                cgmath::Matrix4::from_nonuniform_scale(0.5, 0.5, 1.0),
-            )]),
+            contents: {
+                let buttons_center =
+                    cgmath::Matrix4::from_translation(cgmath::Vector3::new(1.65, -0.25, 0.0));
+                bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(
+                    cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0).mul(buttons_center),
+                )])
+            },
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
         let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
             contents: bytemuck::cast_slice(&[config.width, config.height]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let scale_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Scale Buffer"),
+            contents: bytemuck::cast_slice(&[scale]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -252,6 +264,16 @@ impl State {
                         },
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 5,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                 ],
                 label: Some("main_bind_group_layout"),
             });
@@ -273,10 +295,14 @@ impl State {
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: time_buffer.as_entire_binding(),
+                    resource: scale_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 4,
+                    resource: time_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
                     resource: which_buffer.as_entire_binding(),
                 },
             ],
@@ -353,6 +379,7 @@ impl State {
             camera_buffer,
             model_matrix_buffer,
             resolution_buffer,
+            scale_buffer,
             time_buffer,
             which_buffer,
             main_bind_group,
@@ -389,11 +416,11 @@ impl State {
             bytemuck::cast_slice(&[self.start_time.elapsed().as_secs_f32()]),
         );
 
-        self.queue.write_buffer(
-            &self.which_buffer,
-            0,
-            bytemuck::cast_slice(&[(self.start_time.elapsed().as_secs_f32() as u32) % 14]),
-        );
+        // self.queue.write_buffer(
+        //     &self.which_buffer,
+        //     0,
+        //     bytemuck::cast_slice(&[(self.start_time.elapsed().as_secs_f32() as u32) % 14]),
+        // );
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

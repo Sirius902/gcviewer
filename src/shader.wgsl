@@ -13,8 +13,10 @@ var<uniform> model_matrix: mat4x4<f32>;
 @group(1) @binding(2)
 var<uniform> resolution: vec2<f32>;
 @group(1) @binding(3)
-var<uniform> time: f32;
+var<uniform> scale: f32;
 @group(1) @binding(4)
+var<uniform> time: f32;
+@group(1) @binding(5)
 var<uniform> which: u32;
 
 /*
@@ -34,8 +36,6 @@ Corresponding `which` values
 12 -> Dpad Right
 13 -> Dpad Down
 */
-
-let border = 0.15;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -61,16 +61,20 @@ fn rgb_to_srgb4(v: vec4<f32>) -> vec4<f32> {
     );
 }
 
+fn border_width() -> f32 {
+    return 0.125 / scale;
+}
+
 fn clip_circle_button(in: VertexOutput) {
     let r = length(in.position);
-    if r > 0.5 || r < 0.5 - (0.5 * r) * border {
+    if r > 0.5 || r < 0.5 - (0.5 * r) * border_width() {
         discard;
     }
 }
 
 fn clip_sdf_button(in: VertexOutput) {
     let dist = textureSample(t_diffuse, s_diffuse, in.tex_coords).r;
-    if dist < 0.5 || dist > 0.5 + border {
+    if dist < 0.5 || dist > 0.5 + border_width() {
         discard;
     }
 }
