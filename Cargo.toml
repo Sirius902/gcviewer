@@ -19,6 +19,11 @@ git = "https://github.com/Sirius902/gcfeeder"
 version = "1.12.3"
 features = ["derive"]
 
+[dependencies.image]
+version = "0.24.5"
+default-features = false
+features = ["png"]
+
 [dependencies.log]
 version = "0.4.17"
 features = ["std"]

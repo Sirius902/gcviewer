@@ -1,7 +1,11 @@
 @group(0) @binding(0)
-var t_diffuse: texture_2d<f32>;
-@group(0) @binding(1)
 var s_diffuse: sampler;
+@group(0) @binding(1)
+var bean_t_diffuse: texture_2d<f32>;
+@group(0) @binding(2)
+var z_t_diffuse: texture_2d<f32>;
+@group(0) @binding(3)
+var octagon_t_diffuse: texture_2d<f32>;
 
 struct CameraUniform {
     view_proj: mat4x4<f32>,
@@ -9,15 +13,9 @@ struct CameraUniform {
 @group(1) @binding(0)
 var<uniform> camera: CameraUniform;
 @group(1) @binding(1)
-var<uniform> model_matrix: mat4x4<f32>;
-@group(1) @binding(2)
 var<uniform> resolution: vec2<f32>;
-@group(1) @binding(3)
-var<uniform> scale: f32;
-@group(1) @binding(4)
+@group(1) @binding(2)
 var<uniform> time: f32;
-@group(1) @binding(5)
-var<uniform> which: u32;
 
 /*
 Corresponding `which` values
@@ -42,10 +40,29 @@ struct VertexInput {
     @location(1) tex_coords: vec2<f32>,
 }
 
+struct InstanceInput {
+    @location(5) model_matrix_0: vec4<f32>,
+    @location(6) model_matrix_1: vec4<f32>,
+    @location(7) model_matrix_2: vec4<f32>,
+    @location(8) model_matrix_3: vec4<f32>,
+    @location(9) scale: f32,
+    @location(10) which: u32,
+    @location(11) which_texture: u32,
+    @location(12) button_pressed: u32,
+    @location(13) trigger_fill: f32,
+    @location(14) stick_position: vec2<f32>,
+}
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
+    @location(2) scale: f32,
+    @location(3) which: u32,
+    @location(4) which_texture: u32,
+    @location(5) button_pressed: u32,
+    @location(6) trigger_fill: f32,
+    @location(7) stick_position: vec2<f32>,
 }
 
 fn rgb_to_srgb(v: f32) -> f32 {
@@ -61,36 +78,72 @@ fn rgb_to_srgb4(v: vec4<f32>) -> vec4<f32> {
     );
 }
 
-fn border_width() -> f32 {
-    return 0.125 / scale;
+fn border_width(in: VertexOutput) -> f32 {
+    return 0.125 / in.scale;
 }
 
 fn clip_circle_button(in: VertexOutput) {
     let r = length(in.position);
-    if r > 0.5 || r < 0.5 - (0.5 * r) * border_width() {
+    // TODO: Make border width more accurate.
+    if r > 0.5 || r < 0.5 - (0.5 * r) * border_width(in) {
         discard;
     }
 }
 
 fn clip_sdf_button(in: VertexOutput) {
-    let dist = textureSample(t_diffuse, s_diffuse, in.tex_coords).r;
-    if dist < 0.5 || dist > 0.5 + border_width() {
+    let bean_dist = textureSample(bean_t_diffuse, s_diffuse, in.tex_coords).r;
+    let z_dist = textureSample(z_t_diffuse, s_diffuse, in.tex_coords).r;
+    let octagon_dist = textureSample(octagon_t_diffuse, s_diffuse, in.tex_coords).r;
+
+    var dist: f32;
+    switch in.which_texture {
+        case 0u {
+            dist = bean_dist;
+        }
+        case 1u {
+            dist = z_dist;
+        }
+        case 2u {
+            dist = octagon_dist;
+        }
+        default {
+            dist = 0.0;
+        }
+    }
+
+    if dist < 0.5 || dist > 0.5 + border_width(in) {
         discard;
     }
 }
 
 @vertex
-fn vs_main(model: VertexInput) -> VertexOutput {
+fn vs_main(
+    model: VertexInput,
+    instance: InstanceInput,
+) -> VertexOutput {
+    let model_matrix = mat4x4<f32>(
+        instance.model_matrix_0,
+        instance.model_matrix_1,
+        instance.model_matrix_2,
+        instance.model_matrix_3,
+    );
+
     var out: VertexOutput;
     out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
     out.position = model.position;
     out.tex_coords = model.tex_coords;
+    out.scale = instance.scale;
+    out.which = instance.which;
+    out.which_texture = instance.which_texture;
+    out.button_pressed = instance.button_pressed;
+    out.trigger_fill = instance.trigger_fill;
+    out.stick_position = instance.stick_position;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    switch which {
+    switch in.which {
         case 0u, 1u, 4u, 10u, 11u, 12u, 13u { // A, B, Start, Dpad
             clip_circle_button(in);
         }
@@ -104,7 +157,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     var color: vec4<f32>;
-    switch which {
+    switch in.which {
         case 0u { // A
             color = vec4<f32>(0.0, 0.737, 0.556, 1.0);
         }

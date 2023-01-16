@@ -2,6 +2,7 @@
 use std::mem;
 
 pub mod camera;
+pub mod control;
 pub mod state;
 
 #[rustfmt::skip]

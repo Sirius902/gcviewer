@@ -1,18 +1,17 @@
-use std::{ops::Mul, time};
+use std::time;
 
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
 use crate::{
     camera::{Camera, CameraUniform},
+    control::{Button, Control, Instance, InstanceRaw},
     Vertex, INDICES, VERTICES,
 };
 
-const BEAN_SDF: &[u8] = include_bytes!("../resource/sdf/bean-sdf.gray");
-const OCTAGON_SDF: &[u8] = include_bytes!("../resource/sdf/octagon-sdf.gray");
-const Z_BUTTON_SDF: &[u8] = include_bytes!("../resource/sdf/z-button-sdf.gray");
-
-const SDF_SIZE: usize = 64;
+const BEAN_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/bean.png");
+const Z_BUTTON_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/z-button.png");
+const OCTAGON_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/octagon.png");
 
 pub struct State {
     surface: wgpu::Surface,
@@ -28,13 +27,12 @@ pub struct State {
     diffuse_bind_group: wgpu::BindGroup,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
-    model_matrix_buffer: wgpu::Buffer,
     resolution_buffer: wgpu::Buffer,
-    scale_buffer: wgpu::Buffer,
     time_buffer: wgpu::Buffer,
-    which_buffer: wgpu::Buffer,
     main_bind_group: wgpu::BindGroup,
     start_time: time::Instant,
+    instances: Vec<Instance>,
+    instance_buffer: wgpu::Buffer,
 }
 
 impl State {
@@ -74,49 +72,66 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let texture_size = wgpu::Extent3d {
-            width: SDF_SIZE as u32,
-            height: SDF_SIZE as u32,
-            depth_or_array_layers: 1,
+        let (diffuse_sampler, texture_views) = {
+            let texture_views = [
+                (BEAN_SDF_IMAGE, "bean_sdf"),
+                (Z_BUTTON_SDF_IMAGE, "z_button_sdf"),
+                (OCTAGON_SDF_IMAGE, "octagon_sdf"),
+            ]
+            .iter()
+            .map(|(img_buf, name)| {
+                let img = image::load_from_memory(img_buf).expect("failed to decode sdf image");
+                let sdf = img.to_luma8();
+                let dimensions = sdf.dimensions();
+
+                let texture_size = wgpu::Extent3d {
+                    width: dimensions.0,
+                    height: dimensions.1,
+                    depth_or_array_layers: 1,
+                };
+
+                let diffuse_texture = device.create_texture(&wgpu::TextureDescriptor {
+                    size: texture_size,
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::R8Unorm,
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    label: Some(name),
+                });
+
+                queue.write_texture(
+                    wgpu::ImageCopyTexture {
+                        texture: &diffuse_texture,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    &sdf,
+                    wgpu::ImageDataLayout {
+                        offset: 0,
+                        bytes_per_row: std::num::NonZeroU32::new(dimensions.0),
+                        rows_per_image: std::num::NonZeroU32::new(dimensions.1),
+                    },
+                    texture_size,
+                );
+
+                diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default())
+            })
+            .collect::<Vec<_>>();
+
+            let diffuse_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+                address_mode_u: wgpu::AddressMode::ClampToEdge,
+                address_mode_v: wgpu::AddressMode::ClampToEdge,
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Nearest,
+                mipmap_filter: wgpu::FilterMode::Nearest,
+                ..Default::default()
+            });
+
+            (diffuse_sampler, texture_views)
         };
-
-        let diffuse_texture = device.create_texture(&wgpu::TextureDescriptor {
-            size: texture_size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::R8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            label: Some("bean_sdf"),
-        });
-
-        queue.write_texture(
-            wgpu::ImageCopyTexture {
-                texture: &diffuse_texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            BEAN_SDF,
-            wgpu::ImageDataLayout {
-                offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(SDF_SIZE as u32),
-                rows_per_image: std::num::NonZeroU32::new(SDF_SIZE as u32),
-            },
-            texture_size,
-        );
-
-        let diffuse_texture_view =
-            diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let diffuse_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
@@ -132,6 +147,12 @@ impl State {
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Texture {
                             multisampled: false,
                             view_dimension: wgpu::TextureViewDimension::D2,
@@ -140,9 +161,23 @@ impl State {
                         count: None,
                     },
                     wgpu::BindGroupLayoutEntry {
-                        binding: 1,
+                        binding: 2,
                         visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
                         count: None,
                     },
                 ],
@@ -154,11 +189,19 @@ impl State {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture_view),
+                    resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
+                    resource: wgpu::BindingResource::TextureView(&texture_views[0]),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(&texture_views[1]),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(&texture_views[2]),
                 },
             ],
             label: Some("diffuse_bind_group"),
@@ -173,28 +216,9 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let scale = 0.302;
-        let model_matrix_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Model Matrix Buffer"),
-            contents: {
-                let buttons_center =
-                    cgmath::Matrix4::from_translation(cgmath::Vector3::new(1.65, -0.25, 0.0));
-                bytemuck::cast_slice(&[Into::<[[f32; 4]; 4]>::into(
-                    cgmath::Matrix4::from_nonuniform_scale(scale, scale, 1.0).mul(buttons_center),
-                )])
-            },
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
         let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
             contents: bytemuck::cast_slice(&[config.width, config.height]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let scale_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Scale Buffer"),
-            contents: bytemuck::cast_slice(&[scale]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -202,12 +226,6 @@ impl State {
         let time_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Time Buffer"),
             contents: bytemuck::cast_slice(&[start_time.elapsed().as_secs_f32()]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let which_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Which Buffer"),
-            contents: bytemuck::cast_slice(&[0u32]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -226,7 +244,7 @@ impl State {
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStages::VERTEX,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -236,37 +254,7 @@ impl State {
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 3,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 4,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 5,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -287,23 +275,11 @@ impl State {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: model_matrix_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
                     resource: resolution_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: scale_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 4,
+                    binding: 2,
                     resource: time_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 5,
-                    resource: which_buffer.as_entire_binding(),
                 },
             ],
             label: Some("main_bind_group"),
@@ -322,7 +298,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::desc(), InstanceRaw::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -363,6 +339,106 @@ impl State {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let instances = vec![
+            Instance {
+                control: Control::Button {
+                    button: Button::A,
+                    pressed: false,
+                },
+                position: cgmath::vec2(0.5, -0.075),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.302,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::B,
+                    pressed: false,
+                },
+                position: cgmath::vec2(0.275, -0.225),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.17,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::X,
+                    pressed: false,
+                },
+                position: cgmath::vec2(0.75, -0.075),
+                rotation: cgmath::Deg(225.0),
+                scale: 0.38,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Y,
+                    pressed: false,
+                },
+                position: cgmath::vec2(0.4, 0.15),
+                rotation: cgmath::Deg(335.0),
+                scale: 0.38,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Start,
+                    pressed: false,
+                },
+                position: cgmath::vec2(0.175, -0.025),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.126,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Z,
+                    pressed: false,
+                },
+                position: cgmath::vec2(0.685, 0.21),
+                rotation: cgmath::Deg(-90.0),
+                scale: 0.38,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Up,
+                    pressed: false,
+                },
+                position: cgmath::vec2(-0.4, -0.205),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.111,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Down,
+                    pressed: false,
+                },
+                position: cgmath::vec2(-0.4, -0.395),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.111,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Left,
+                    pressed: false,
+                },
+                position: cgmath::vec2(-0.495, -0.3),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.111,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Right,
+                    pressed: false,
+                },
+                position: cgmath::vec2(-0.305, -0.3),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.111,
+            },
+        ];
+
+        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Instance Buffer"),
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
         Self {
             surface,
             device,
@@ -377,13 +453,12 @@ impl State {
             diffuse_bind_group,
             camera_uniform,
             camera_buffer,
-            model_matrix_buffer,
             resolution_buffer,
-            scale_buffer,
             time_buffer,
-            which_buffer,
             main_bind_group,
             start_time,
+            instances,
+            instance_buffer,
         }
     }
 
@@ -415,12 +490,6 @@ impl State {
             0,
             bytemuck::cast_slice(&[self.start_time.elapsed().as_secs_f32()]),
         );
-
-        // self.queue.write_buffer(
-        //     &self.which_buffer,
-        //     0,
-        //     bytemuck::cast_slice(&[(self.start_time.elapsed().as_secs_f32() as u32) % 14]),
-        // );
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -452,8 +521,9 @@ impl State {
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &self.main_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
