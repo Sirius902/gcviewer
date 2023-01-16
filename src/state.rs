@@ -1,5 +1,6 @@
 use std::time;
 
+use gcinput::Input;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -335,142 +336,13 @@ impl State {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        let instances = vec![
-            Instance {
-                control: Control::Button {
-                    button: Button::A,
-                    pressed: false,
-                },
-                position: cgmath::vec2(0.5, -0.075),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.302,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::B,
-                    pressed: false,
-                },
-                position: cgmath::vec2(0.275, -0.225),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.17,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::X,
-                    pressed: false,
-                },
-                position: cgmath::vec2(0.75, -0.075),
-                rotation: cgmath::Deg(225.0),
-                scale: 0.275,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::Y,
-                    pressed: false,
-                },
-                position: cgmath::vec2(0.4, 0.15),
-                rotation: cgmath::Deg(-20.0),
-                scale: 0.275,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::Start,
-                    pressed: false,
-                },
-                position: cgmath::vec2(0.175, -0.025),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.126,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::Z,
-                    pressed: false,
-                },
-                position: cgmath::vec2(0.685, 0.21),
-                rotation: cgmath::Deg(-80.0),
-                scale: 0.225,
-            },
-            Instance {
-                control: Control::Stick {
-                    stick: Stick::Main,
-                    position: cgmath::vec2(0.0, 0.0),
-                },
-                position: cgmath::vec2(-0.65, 0.0),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.504,
-            },
-            Instance {
-                control: Control::Stick {
-                    stick: Stick::C,
-                    position: cgmath::vec2(0.0, 0.0),
-                },
-                position: cgmath::vec2(-0.15, 0.0),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.504,
-            },
-            Instance {
-                control: Control::Trigger {
-                    trigger: Trigger::Left,
-                    fill: 0.0,
-                    pressed: false,
-                },
-                position: cgmath::vec2(-0.65, 0.35),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.375,
-            },
-            Instance {
-                control: Control::Trigger {
-                    trigger: Trigger::Right,
-                    fill: 0.0,
-                    pressed: false,
-                },
-                position: cgmath::vec2(-0.15, 0.35),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.375,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::Up,
-                    pressed: false,
-                },
-                position: cgmath::vec2(-0.4, -0.205),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.109,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::Down,
-                    pressed: false,
-                },
-                position: cgmath::vec2(-0.4, -0.395),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.109,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::Left,
-                    pressed: false,
-                },
-                position: cgmath::vec2(-0.495, -0.3),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.109,
-            },
-            Instance {
-                control: Control::Button {
-                    button: Button::Right,
-                    pressed: false,
-                },
-                position: cgmath::vec2(-0.305, -0.3),
-                rotation: cgmath::Deg(0.0),
-                scale: 0.109,
-            },
-        ];
+        let instances = Self::gen_instances(&Input::default());
 
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
 
         Self {
@@ -505,7 +377,19 @@ impl State {
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, input: &Input) {
+        self.instances = Self::gen_instances(input);
+        let instance_data = self
+            .instances
+            .iter()
+            .map(Instance::to_raw)
+            .collect::<Vec<_>>();
+        self.queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&instance_data),
+        );
+
         self.queue.write_buffer(
             &self.resolution_buffer,
             0,
@@ -564,5 +448,143 @@ impl State {
         output.present();
 
         Ok(())
+    }
+
+    fn stick_to_vec2(stick: &gcinput::Stick) -> cgmath::Vector2<f32> {
+        let f = |n: u8| ((u8::MAX - n) as f32 / u8::MAX as f32 - 0.5) * 0.6;
+        cgmath::vec2(f(stick.x), f(stick.y))
+    }
+
+    fn gen_instances(input: &Input) -> Vec<Instance> {
+        vec![
+            Instance {
+                control: Control::Button {
+                    button: Button::A,
+                    pressed: input.button_a,
+                },
+                position: cgmath::vec2(0.5, -0.075),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.302,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::B,
+                    pressed: input.button_b,
+                },
+                position: cgmath::vec2(0.275, -0.225),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.17,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::X,
+                    pressed: input.button_x,
+                },
+                position: cgmath::vec2(0.75, -0.075),
+                rotation: cgmath::Deg(225.0),
+                scale: 0.275,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Y,
+                    pressed: input.button_y,
+                },
+                position: cgmath::vec2(0.4, 0.15),
+                rotation: cgmath::Deg(-20.0),
+                scale: 0.275,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Start,
+                    pressed: input.button_start,
+                },
+                position: cgmath::vec2(0.175, -0.025),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.126,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Z,
+                    pressed: input.button_z,
+                },
+                position: cgmath::vec2(0.685, 0.21),
+                rotation: cgmath::Deg(-80.0),
+                scale: 0.225,
+            },
+            Instance {
+                control: Control::Stick {
+                    stick: Stick::Main,
+                    position: Self::stick_to_vec2(&input.main_stick),
+                },
+                position: cgmath::vec2(-0.65, 0.0),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.504,
+            },
+            Instance {
+                control: Control::Stick {
+                    stick: Stick::C,
+                    position: Self::stick_to_vec2(&input.c_stick),
+                },
+                position: cgmath::vec2(-0.15, 0.0),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.504,
+            },
+            Instance {
+                control: Control::Trigger {
+                    trigger: Trigger::Left,
+                    fill: input.left_trigger as f32 / u8::MAX as f32,
+                    pressed: input.button_left,
+                },
+                position: cgmath::vec2(-0.65, 0.35),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.375,
+            },
+            Instance {
+                control: Control::Trigger {
+                    trigger: Trigger::Right,
+                    fill: input.right_trigger as f32 / u8::MAX as f32,
+                    pressed: input.button_right,
+                },
+                position: cgmath::vec2(-0.15, 0.35),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.375,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Up,
+                    pressed: input.button_up,
+                },
+                position: cgmath::vec2(-0.4, -0.205),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.109,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Down,
+                    pressed: input.button_down,
+                },
+                position: cgmath::vec2(-0.4, -0.395),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.109,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Left,
+                    pressed: input.button_left,
+                },
+                position: cgmath::vec2(-0.495, -0.3),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.109,
+            },
+            Instance {
+                control: Control::Button {
+                    button: Button::Right,
+                    pressed: input.button_right,
+                },
+                position: cgmath::vec2(-0.305, -0.3),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.109,
+            },
+        ]
     }
 }
