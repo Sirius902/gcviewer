@@ -79,7 +79,7 @@ fn rgb_to_srgb4(v: vec4<f32>) -> vec4<f32> {
 }
 
 fn border_width(in: VertexOutput) -> f32 {
-    return 0.1 / in.scale;
+    return 0.095 / in.scale;
 }
 
 fn clip_circle_button(in: VertexOutput) {
@@ -150,9 +150,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         case 2u, 3u, 5u { // X, Y, Z
             clip_sdf_button(in);
         }
+        case 6u, 7u {
+            clip_sdf_button(in);
+        }
         default {
             // TODO: Implement drawing sticks and triggers.
-            clip_circle_button(in);
+            discard;
         }
     }
 

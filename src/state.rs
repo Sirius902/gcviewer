@@ -5,7 +5,7 @@ use winit::window::Window;
 
 use crate::{
     camera::{Camera, CameraUniform},
-    control::{Button, Control, Instance, InstanceRaw},
+    control::{Button, Control, Instance, InstanceRaw, Stick, Trigger},
     Vertex, INDICES, VERTICES,
 };
 
@@ -393,6 +393,44 @@ impl State {
                 position: cgmath::vec2(0.685, 0.21),
                 rotation: cgmath::Deg(-80.0),
                 scale: 0.225,
+            },
+            Instance {
+                control: Control::Stick {
+                    stick: Stick::Main,
+                    position: cgmath::vec2(0.0, 0.0),
+                },
+                position: cgmath::vec2(-0.65, 0.0),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.504,
+            },
+            Instance {
+                control: Control::Stick {
+                    stick: Stick::C,
+                    position: cgmath::vec2(0.0, 0.0),
+                },
+                position: cgmath::vec2(-0.15, 0.0),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.504,
+            },
+            Instance {
+                control: Control::Trigger {
+                    trigger: Trigger::Left,
+                    fill: 0.0,
+                    pressed: false,
+                },
+                position: cgmath::vec2(-0.65, 0.35),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.375,
+            },
+            Instance {
+                control: Control::Trigger {
+                    trigger: Trigger::Right,
+                    fill: 0.0,
+                    pressed: false,
+                },
+                position: cgmath::vec2(-0.15, 0.35),
+                rotation: cgmath::Deg(0.0),
+                scale: 0.375,
             },
             Instance {
                 control: Control::Button {
