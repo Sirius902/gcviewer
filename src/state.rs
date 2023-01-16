@@ -365,7 +365,7 @@ impl State {
                 },
                 position: cgmath::vec2(0.75, -0.075),
                 rotation: cgmath::Deg(225.0),
-                scale: 0.38,
+                scale: 0.275,
             },
             Instance {
                 control: Control::Button {
@@ -373,8 +373,8 @@ impl State {
                     pressed: false,
                 },
                 position: cgmath::vec2(0.4, 0.15),
-                rotation: cgmath::Deg(335.0),
-                scale: 0.38,
+                rotation: cgmath::Deg(-20.0),
+                scale: 0.275,
             },
             Instance {
                 control: Control::Button {
@@ -391,8 +391,8 @@ impl State {
                     pressed: false,
                 },
                 position: cgmath::vec2(0.685, 0.21),
-                rotation: cgmath::Deg(-90.0),
-                scale: 0.38,
+                rotation: cgmath::Deg(-80.0),
+                scale: 0.225,
             },
             Instance {
                 control: Control::Button {

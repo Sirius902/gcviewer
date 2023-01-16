@@ -79,13 +79,13 @@ fn rgb_to_srgb4(v: vec4<f32>) -> vec4<f32> {
 }
 
 fn border_width(in: VertexOutput) -> f32 {
-    return 0.125 / in.scale;
+    return 0.1 / in.scale;
 }
 
 fn clip_circle_button(in: VertexOutput) {
     let r = length(in.position);
     // TODO: Make border width more accurate.
-    if r > 0.5 || r < 0.5 - (0.5 * r) * border_width(in) {
+    if r > 0.5 || ((in.button_pressed == 0u) && r < 0.5 - (0.75 * r) * border_width(in)) {
         discard;
     }
 }
@@ -111,7 +111,7 @@ fn clip_sdf_button(in: VertexOutput) {
         }
     }
 
-    if dist < 0.5 || dist > 0.5 + border_width(in) {
+    if dist < 0.5 - border_width(in) || ((in.button_pressed == 0u) && dist > 0.5) {
         discard;
     }
 }
