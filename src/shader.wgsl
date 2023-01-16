@@ -119,7 +119,7 @@ fn clip_sdf_button(in: VertexOutput) {
 fn clip_stick(in: VertexOutput) {
     let bw = border_width(in);
     let is_c_stick = in.which == 7u;
-    var radius = 0.265;
+    var radius = 0.225;
     if is_c_stick {
         radius *= 0.8;
     }
@@ -127,7 +127,8 @@ fn clip_stick(in: VertexOutput) {
     let center = in.position.xy + in.stick_position;
     let dist = radius - length(center);
 
-    let sdf_dist = textureSample(octagon_t_diffuse, s_diffuse, in.tex_coords).r;
+    let scaled_uv = (in.tex_coords - 0.5) / 0.85 + 0.5;
+    let sdf_dist = textureSample(octagon_t_diffuse, s_diffuse, scaled_uv).r;
 
     if (dist < 0.0 && (sdf_dist < 0.5 - bw || sdf_dist > 0.5)) || (!is_c_stick && dist > radius * bw) {
         discard;

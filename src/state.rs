@@ -518,7 +518,7 @@ impl State {
                 },
                 position: cgmath::vec2(-0.65, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.504,
+                scale: 0.58,
             },
             Instance {
                 control: Control::Stick {
@@ -527,7 +527,7 @@ impl State {
                 },
                 position: cgmath::vec2(-0.15, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.504,
+                scale: 0.58,
             },
             Instance {
                 control: Control::Trigger {
@@ -554,36 +554,36 @@ impl State {
                     button: Button::Up,
                     pressed: input.button_up,
                 },
-                position: cgmath::vec2(-0.4, -0.205),
+                position: cgmath::vec2(-0.4, -0.22),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.109,
+                scale: 0.1,
             },
             Instance {
                 control: Control::Button {
                     button: Button::Down,
                     pressed: input.button_down,
                 },
-                position: cgmath::vec2(-0.4, -0.395),
+                position: cgmath::vec2(-0.4, -0.38),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.109,
+                scale: 0.1,
             },
             Instance {
                 control: Control::Button {
                     button: Button::Left,
                     pressed: input.button_left,
                 },
-                position: cgmath::vec2(-0.495, -0.3),
+                position: cgmath::vec2(-0.48, -0.3),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.109,
+                scale: 0.1,
             },
             Instance {
                 control: Control::Button {
                     button: Button::Right,
                     pressed: input.button_right,
                 },
-                position: cgmath::vec2(-0.305, -0.3),
+                position: cgmath::vec2(-0.32, -0.3),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.109,
+                scale: 0.1,
             },
         ]
     }
