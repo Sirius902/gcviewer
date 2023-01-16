@@ -1,6 +1,6 @@
 #![deny(clippy::all)]
 use std::{
-    io, mem,
+    env, io, mem,
     net::UdpSocket,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -21,6 +21,15 @@ use winit::{
 
 fn main() {
     std::panic::set_hook(Box::new(panic_log::hook));
+
+    let exe_path = env::current_exe().expect("Failed to get current exe path");
+    env::set_current_dir(
+        exe_path
+            .parent()
+            .expect("Failed to get current exe parent path"),
+    )
+    .expect("Failed to set current working directory");
+
     env_logger::init();
     pollster::block_on(run());
 }
