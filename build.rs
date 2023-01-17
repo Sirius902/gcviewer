@@ -29,7 +29,6 @@ pub fn main() {
     #[cfg(windows)]
     {
         const ICON_PATH: &str = "resource/icon.png";
-        println!("cargo:rerun-if-changed={}", ICON_PATH);
 
         let icon = image::load(
             io::BufReader::new(File::open(ICON_PATH).unwrap()),
