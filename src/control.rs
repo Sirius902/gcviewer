@@ -3,9 +3,9 @@ use std::mem;
 #[derive(Debug)]
 pub struct Instance {
     pub control: Control,
-    pub position: cgmath::Vector2<f32>,
+    pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Deg<f32>,
-    pub scale: f32,
+    pub scale: Scale,
 }
 
 impl Instance {
@@ -26,16 +26,21 @@ impl Instance {
                 fill,
                 pressed,
             } => (*trigger as u32, 0, *pressed, *fill, [0.0, 0.0]),
+            Control::Misc(m) => (*m as u32, 0, false, 0.0, [0.0, 0.0]),
+        };
+
+        let (scale_x, scale_y, uniform_scale) = match self.scale {
+            Scale::Uniform(s) => (s, s, s),
+            Scale::NonUniform(x, y) => (x, y, 1.0),
         };
 
         let rotate = cgmath::Matrix4::from_angle_z(self.rotation);
-        let scale = cgmath::Matrix4::from_nonuniform_scale(self.scale, self.scale, 1.0);
-        let translate =
-            cgmath::Matrix4::from_translation(cgmath::vec3(self.position.x, self.position.y, 0.0));
+        let scale = cgmath::Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0);
+        let translate = cgmath::Matrix4::from_translation(self.position);
 
         InstanceRaw {
             model_matrix: (translate * rotate * scale).into(),
-            scale: self.scale,
+            scale: uniform_scale,
             which,
             which_texture,
             button_pressed: pressed.into(),
@@ -81,6 +86,12 @@ impl InstanceRaw {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub enum Scale {
+    Uniform(f32),
+    NonUniform(f32, f32),
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum Button {
     A = 0,
     B = 1,
@@ -106,6 +117,11 @@ pub enum Trigger {
     Right = 9,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum Misc {
+    Background = 14,
+}
+
 #[derive(Debug)]
 pub enum Control {
     Button {
@@ -121,4 +137,5 @@ pub enum Control {
         fill: f32,
         pressed: bool,
     },
+    Misc(Misc),
 }

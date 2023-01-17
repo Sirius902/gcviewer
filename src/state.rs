@@ -6,13 +6,21 @@ use winit::window::Window;
 
 use crate::{
     camera::{Camera, CameraUniform},
-    control::{Button, Control, Instance, InstanceRaw, Stick, Trigger},
+    control::{Button, Control, Instance, InstanceRaw, Misc, Scale, Stick, Trigger},
     Vertex, INDICES, VERTICES,
 };
 
 const BEAN_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/bean.png");
 const Z_BUTTON_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/z-button.png");
 const OCTAGON_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/octagon.png");
+
+const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+pub struct Texture {
+    pub texture: wgpu::Texture,
+    pub view: wgpu::TextureView,
+    pub sampler: wgpu::Sampler,
+}
 
 pub struct State {
     surface: wgpu::Surface,
@@ -34,10 +42,11 @@ pub struct State {
     start_time: time::Instant,
     instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
+    depth_texture: Texture,
 }
 
 impl State {
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(window: &Window, custom_shader: Option<String>) -> Self {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::Backend::Vulkan.into());
@@ -130,7 +139,16 @@ impl State {
             ..Default::default()
         });
 
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
+        let shader_descriptor = if let Some(custom_shader) = custom_shader {
+            wgpu::ShaderModuleDescriptor {
+                label: Some("custom_shader"),
+                source: wgpu::ShaderSource::Wgsl(custom_shader.into()),
+            }
+        } else {
+            wgpu::include_wgsl!("shader.wgsl")
+        };
+
+        let shader = device.create_shader_module(shader_descriptor);
 
         let camera = Camera {
             aspect: config.width as f32 / config.height as f32,
@@ -214,8 +232,8 @@ impl State {
         });
 
         let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[config.width, config.height]),
+            label: Some("Resolution Buffer"),
+            contents: bytemuck::cast_slice(&[config.width as f32, config.height as f32]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -315,7 +333,13 @@ impl State {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -345,6 +369,8 @@ impl State {
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
 
+        let depth_texture = Self::create_depth_texture(&device, &config, "depth_texture");
+
         Self {
             surface,
             device,
@@ -365,6 +391,7 @@ impl State {
             start_time,
             instances,
             instance_buffer,
+            depth_texture,
         }
     }
 
@@ -374,6 +401,8 @@ impl State {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
+            self.depth_texture =
+                Self::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
     }
 
@@ -393,7 +422,7 @@ impl State {
         self.queue.write_buffer(
             &self.resolution_buffer,
             0,
-            bytemuck::cast_slice(&[self.config.width, self.config.height]),
+            bytemuck::cast_slice(&[self.config.width as f32, self.config.height as f32]),
         );
 
         self.camera.update(&self.config);
@@ -432,7 +461,14 @@ impl State {
                         store: true,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
@@ -462,72 +498,72 @@ impl State {
                     button: Button::A,
                     pressed: input.button_a,
                 },
-                position: cgmath::vec2(0.5, -0.075),
+                position: cgmath::vec3(0.5, -0.075, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.302,
+                scale: Scale::Uniform(0.302),
             },
             Instance {
                 control: Control::Button {
                     button: Button::B,
                     pressed: input.button_b,
                 },
-                position: cgmath::vec2(0.275, -0.225),
+                position: cgmath::vec3(0.275, -0.225, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.17,
+                scale: Scale::Uniform(0.17),
             },
             Instance {
                 control: Control::Button {
                     button: Button::X,
                     pressed: input.button_x,
                 },
-                position: cgmath::vec2(0.75, -0.075),
+                position: cgmath::vec3(0.75, -0.075, 0.0),
                 rotation: cgmath::Deg(225.0),
-                scale: 0.275,
+                scale: Scale::Uniform(0.275),
             },
             Instance {
                 control: Control::Button {
                     button: Button::Y,
                     pressed: input.button_y,
                 },
-                position: cgmath::vec2(0.4, 0.15),
+                position: cgmath::vec3(0.4, 0.15, 0.0),
                 rotation: cgmath::Deg(-20.0),
-                scale: 0.275,
+                scale: Scale::Uniform(0.275),
             },
             Instance {
                 control: Control::Button {
                     button: Button::Start,
                     pressed: input.button_start,
                 },
-                position: cgmath::vec2(0.175, -0.025),
+                position: cgmath::vec3(0.175, -0.025, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.126,
+                scale: Scale::Uniform(0.126),
             },
             Instance {
                 control: Control::Button {
                     button: Button::Z,
                     pressed: input.button_z,
                 },
-                position: cgmath::vec2(0.685, 0.21),
+                position: cgmath::vec3(0.685, 0.21, 0.0),
                 rotation: cgmath::Deg(-80.0),
-                scale: 0.225,
+                scale: Scale::Uniform(0.225),
             },
             Instance {
                 control: Control::Stick {
                     stick: Stick::Main,
                     position: Self::stick_to_vec2(&input.main_stick),
                 },
-                position: cgmath::vec2(-0.65, 0.0),
+                position: cgmath::vec3(-0.65, 0.0, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.58,
+                scale: Scale::Uniform(0.58),
             },
             Instance {
                 control: Control::Stick {
                     stick: Stick::C,
                     position: Self::stick_to_vec2(&input.c_stick),
                 },
-                position: cgmath::vec2(-0.15, 0.0),
+                position: cgmath::vec3(-0.15, 0.0, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.58,
+                scale: Scale::Uniform(0.58),
             },
             Instance {
                 control: Control::Trigger {
@@ -535,9 +571,9 @@ impl State {
                     fill: input.left_trigger as f32 / u8::MAX as f32,
                     pressed: input.button_left,
                 },
-                position: cgmath::vec2(-0.65, 0.35),
+                position: cgmath::vec3(-0.65, 0.35, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.375,
+                scale: Scale::Uniform(0.375),
             },
             Instance {
                 control: Control::Trigger {
@@ -545,46 +581,94 @@ impl State {
                     fill: input.right_trigger as f32 / u8::MAX as f32,
                     pressed: input.button_right,
                 },
-                position: cgmath::vec2(-0.15, 0.35),
+                position: cgmath::vec3(-0.15, 0.35, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.375,
+                scale: Scale::Uniform(0.375),
             },
             Instance {
                 control: Control::Button {
                     button: Button::Up,
                     pressed: input.button_up,
                 },
-                position: cgmath::vec2(-0.4, -0.22),
+                position: cgmath::vec3(-0.4, -0.22, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.1,
+                scale: Scale::Uniform(0.1),
             },
             Instance {
                 control: Control::Button {
                     button: Button::Down,
                     pressed: input.button_down,
                 },
-                position: cgmath::vec2(-0.4, -0.38),
+                position: cgmath::vec3(-0.4, -0.38, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.1,
+                scale: Scale::Uniform(0.1),
             },
             Instance {
                 control: Control::Button {
                     button: Button::Left,
                     pressed: input.button_left,
                 },
-                position: cgmath::vec2(-0.48, -0.3),
+                position: cgmath::vec3(-0.48, -0.3, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.1,
+                scale: Scale::Uniform(0.1),
             },
             Instance {
                 control: Control::Button {
                     button: Button::Right,
                     pressed: input.button_right,
                 },
-                position: cgmath::vec2(-0.32, -0.3),
+                position: cgmath::vec3(-0.32, -0.3, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: 0.1,
+                scale: Scale::Uniform(0.1),
+            },
+            Instance {
+                control: Control::Misc(Misc::Background),
+                position: cgmath::vec3(0.0, 0.0, -1.0),
+                rotation: cgmath::Deg(0.0),
+                scale: Scale::NonUniform(2.0, 1.0),
             },
         ]
+    }
+
+    fn create_depth_texture(
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+        label: &str,
+    ) -> Texture {
+        let size = wgpu::Extent3d {
+            width: config.width,
+            height: config.height,
+            depth_or_array_layers: 1,
+        };
+        let desc = wgpu::TextureDescriptor {
+            label: Some(label),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: DEPTH_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        };
+        let texture = device.create_texture(&desc);
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            compare: Some(wgpu::CompareFunction::LessEqual),
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 100.0,
+            ..Default::default()
+        });
+
+        Texture {
+            texture,
+            view,
+            sampler,
+        }
     }
 }

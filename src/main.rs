@@ -1,6 +1,8 @@
 #![deny(clippy::all)]
 use std::{
-    env, io, mem,
+    env, fs,
+    io::{self, Read},
+    mem,
     net::UdpSocket,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -21,8 +23,6 @@ use winit::{
 };
 
 fn main() {
-    std::panic::set_hook(Box::new(panic_log::hook));
-
     let exe_path = env::current_exe().expect("Failed to get current exe path");
     env::set_current_dir(
         exe_path
@@ -33,8 +33,15 @@ fn main() {
 
     env_logger::init();
 
+    let custom_shader = fs::File::open("shader.wgsl")
+        .and_then(|mut f| {
+            let mut s = String::new();
+            f.read_to_string(&mut s).map(|_| s)
+        })
+        .ok();
+
     let args = Args::parse();
-    pollster::block_on(run(&args));
+    pollster::block_on(run(&args, custom_shader));
 }
 
 #[derive(Parser)]
@@ -54,7 +61,7 @@ struct SocketContext {
     stop_flag: AtomicBool,
 }
 
-async fn run(args: &Args) {
+async fn run(args: &Args, custom_shader: Option<String>) {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(format!("gcviewer | {}", env!("VERSION")))
@@ -106,7 +113,7 @@ async fn run(args: &Args) {
         }
     })));
 
-    let mut state = State::new(&window).await;
+    let mut state = State::new(&window, custom_shader).await;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {

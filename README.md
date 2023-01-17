@@ -15,5 +15,5 @@ of GameCube and viewer, and, despite separating into a different repository the 
 For info on the program arguments, run with `--help`.
 
 ## Themes
-To customize the theme of the input viewer, put a `color.frag` according to the specification in the same directory as the executable.
-The default theme can be found at `src/shader/color.frag`. Other themes can be found in `theme`.
+To customize the theme of the input viewer, put a `shader.wgsl` according to the specification in the same directory as the executable.
+The default theme can be found at `src/shader.wgsl`. Other themes can be found in `theme`.
