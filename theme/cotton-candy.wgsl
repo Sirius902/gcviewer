@@ -220,23 +220,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var color: vec4<f32>;
     switch in.which {
-        case 0u { // A
-            color = vec4<f32>(0.0, 0.737, 0.556, 1.0);
-        }
-        case 1u { // B
-            color = vec4<f32>(1.0, 0.0, 0.0, 1.0);
-        }
-        case 5u { // Z
-            color = vec4<f32>(0.333, 0.0, 0.678, 1.0);
-        }
-        case 7u { // C Stick
-            color = vec4<f32>(1.0, 0.894, 0.0, 1.0);
-        }
         case 14u { // Background
             color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
         }
         default {
-            color = vec4<f32>(0.95, 0.95, 0.95, 1.0);
+            let screen_pos = (in.clip_position.xy / resolution) * vec2<f32>(1.0, -1.0)
+                + vec2<f32>(0.0, 1.0);
+            color = vec4<f32>((sin(time) + 1.0), screen_pos.y, 1.0, 1.0);
         }
     }
 

@@ -67,7 +67,11 @@ struct VertexOutput {
 }
 
 fn srgb_to_rgb(v: f32) -> f32 {
-    return pow((v + 0.055) / 1.055, 2.4);
+    if v <= 0.04045 {
+        return v / 12.92;
+    } else {
+        return pow((v + 0.055) / 1.055, 2.4);
+    }
 }
 
 fn srgb_to_rgb4(v: vec4<f32>) -> vec4<f32> {
@@ -200,6 +204,68 @@ fn vs_main(
     return out;
 }
 
+let minv = mat3x3<f32>(
+    vec3<f32>( 3.24100323, -0.96922425,  0.05563942),
+    vec3<f32>(-1.53739897,  1.87592998, -0.20401121),
+    vec3<f32>(-0.49861588,  0.04155423,  1.05714898),
+);
+
+fn gamma(u: f32) -> f32 {
+    if u <= 0.0031308 {
+        return 12.92 * u;
+    } else {
+        return (1.055 * pow(u, 1.0 / 2.4)) - 0.055;
+    }
+}
+
+fn get_d65() -> vec3<f32> {
+    let d65_cie = vec2<f32>(0.31271, 0.32902);
+    return vec3<f32>(
+        (1.0 / d65_cie.y) * d65_cie.x,
+        1.0,
+        (1.0 / d65_cie.y) * (1.0 - d65_cie.x - d65_cie.y),
+    );
+}
+
+fn inversef(t: f32) -> f32 {
+    let delta = 6.0 / 29.0;
+
+    if t > delta {
+        return pow(t, 3.0);
+    } else {
+        return 3.0 * pow(delta, 2.0) * (t - (4.0 / 29.0));
+    }
+}
+
+fn rgb_to_srgb(c: vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(gamma(c.x), gamma(c.y), gamma(c.z));
+}
+
+fn xyz_to_rgb(c: vec3<f32>) -> vec3<f32> {
+    return minv * c;
+}
+
+fn lab_to_xyz(c: vec3<f32>) -> vec3<f32> {
+    let d65 = get_d65();
+    let x = d65.x * inversef(((c.x + 16.0) / 116.0) + (c.y / 500.0));
+    let y = d65.y * inversef((c.x + 16.0) / 116.0);
+    let z = d65.z * inversef(((c.x + 16.0) / 116.0) - (c.z / 200.0));
+    return vec3<f32>(x, y, z);
+}
+
+fn lch_to_lab(c: vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(c.x, c.y * cos(c.z), c.y * sin(c.z));
+}
+
+fn wave_color(in: VertexOutput, lum: f32, chrom: f32) -> vec4<f32> {
+    let screen_pos = (in.clip_position.xy / resolution) * vec2<f32>(1.0, -1.0)
+        + vec2<f32>(0.0, 1.0);
+
+    return vec4<f32>(rgb_to_srgb(xyz_to_rgb(lab_to_xyz(lch_to_lab(
+        vec3<f32>(lum, chrom, time + 2.0 * screen_pos.x)
+    )))), 1.0);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     switch in.which {
@@ -220,23 +286,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var color: vec4<f32>;
     switch in.which {
-        case 0u { // A
-            color = vec4<f32>(0.0, 0.737, 0.556, 1.0);
-        }
-        case 1u { // B
-            color = vec4<f32>(1.0, 0.0, 0.0, 1.0);
-        }
-        case 5u { // Z
-            color = vec4<f32>(0.333, 0.0, 0.678, 1.0);
-        }
-        case 7u { // C Stick
-            color = vec4<f32>(1.0, 0.894, 0.0, 1.0);
-        }
         case 14u { // Background
             color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
         }
         default {
-            color = vec4<f32>(0.95, 0.95, 0.95, 1.0);
+            color = wave_color(in, 80.0, 100.0);
         }
     }
 
