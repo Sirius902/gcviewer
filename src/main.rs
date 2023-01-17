@@ -19,8 +19,10 @@ use gcviewer::state::State;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Icon, WindowBuilder},
 };
+
+const ICON_FILE: &[u8] = include_bytes!("../resource/icon.png");
 
 fn main() {
     let exe_path = env::current_exe().expect("Failed to get current exe path");
@@ -62,6 +64,13 @@ struct SocketContext {
 }
 
 async fn run(args: &Args, custom_shader: Option<String>) {
+    let icon = {
+        let icon = image::load_from_memory(ICON_FILE).unwrap();
+        let rgba = icon.into_rgba8();
+        let (width, height) = rgba.dimensions();
+        Icon::from_rgba(rgba.to_vec(), width, height).unwrap()
+    };
+
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(format!("gcviewer | {}", env!("VERSION")))
@@ -69,6 +78,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
             width: 512,
             height: 256,
         })
+        .with_window_icon(Some(icon))
         .build(&event_loop)
         .unwrap();
 

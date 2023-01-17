@@ -81,7 +81,7 @@ impl State {
         .iter()
         .map(|(img_buf, name)| {
             let img = image::load_from_memory(img_buf).expect("failed to decode sdf image");
-            let sdf = img.to_luma8();
+            let sdf = img.into_luma8();
             let dimensions = sdf.dimensions();
 
             let texture_size = wgpu::Extent3d {
