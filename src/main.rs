@@ -52,7 +52,7 @@ struct Args {
         short,
         long,
         default_value_t = 4096,
-        help = "Uses the specified port for the UDP server."
+        help = "Connects to UDP server on the specified port."
     )]
     port: u16,
 }
@@ -82,15 +82,15 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         .build(&event_loop)
         .unwrap();
 
-    let socket = UdpSocket::bind(("127.0.0.1", args.port)).unwrap_or_else(|e| {
-        panic!(
-            "Failed to create to input server on localhost:{}: {}",
-            args.port, e
-        );
-    });
-    socket
-        .set_nonblocking(true)
-        .expect("Failed to set socket to nonblocking");
+    let socket = UdpSocket::bind("0.0.0.0:0")
+        .and_then(|s| s.connect(("127.0.0.1", args.port)).map(|()| s))
+        .and_then(|s| s.set_nonblocking(true).map(|()| s))
+        .unwrap_or_else(|e| {
+            panic!(
+                "Failed to connect to input server on localhost:{}: {}",
+                args.port, e
+            );
+        });
 
     let context = Arc::new(SocketContext {
         socket,
@@ -103,6 +103,8 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         let mut data = vec![0u8; input_size as usize];
 
         while !context.stop_flag.load(Ordering::Acquire) {
+            let _ = context.socket.send(&[]);
+
             match context.socket.recv(&mut data) {
                 Ok(received) => {
                     if received == data.len() {
@@ -118,7 +120,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
                     thread::sleep(Duration::from_millis(8));
                     continue;
                 }
-                Err(e) => log::error!("{}", e),
+                Err(_) => {}
             }
         }
     })));
