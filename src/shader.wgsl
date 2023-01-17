@@ -67,7 +67,11 @@ struct VertexOutput {
 }
 
 fn srgb_to_rgb(v: f32) -> f32 {
-    return pow((v + 0.055) / 1.055, 2.4);
+    if v <= 0.04045 {
+        return v / 12.92;
+    } else {
+        return pow((v + 0.055) / 1.055, 2.4);
+    }
 }
 
 fn srgb_to_rgb4(v: vec4<f32>) -> vec4<f32> {
