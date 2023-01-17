@@ -8,8 +8,13 @@ use std::{
 };
 
 const VERSION_VAR: &str = "VERSION";
+const GIT_HEAD: &str = ".git/HEAD";
 
 pub fn main() {
+    if Path::new(GIT_HEAD).exists() {
+        println!("cargo:rustc-rerun-if-changed={}", GIT_HEAD);
+    }
+
     let version = match env::var(VERSION_VAR) {
         Ok(v) => {
             let package_version = format!("v{}", env!("CARGO_PKG_VERSION"));
