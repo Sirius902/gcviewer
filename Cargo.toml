@@ -36,3 +36,11 @@ features = ["std"]
 [dependencies.serde]
 version = "1.0.144"
 features = ["derive"]
+
+[target.'cfg(windows)'.build-dependencies]
+embed-resource = "1.8.0"
+
+[target.'cfg(windows)'.build-dependencies.image]
+version = "0.24.5"
+default-features = false
+features = ["png", "ico"]
