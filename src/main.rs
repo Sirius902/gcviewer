@@ -71,9 +71,15 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         Icon::from_rgba(rgba.to_vec(), width, height).unwrap()
     };
 
+    let version_string = if !env!("VERSION").is_empty() {
+        env!("VERSION")
+    } else {
+        concat!("g", env!("VERGEN_GIT_SHA_SHORT"))
+    };
+
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title(format!("gcviewer | {}", env!("VERSION")))
+        .with_title(format!("gcviewer | {}", version_string))
         .with_inner_size(winit::dpi::PhysicalSize {
             width: 512,
             height: 256,

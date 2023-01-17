@@ -4,16 +4,18 @@ use std::{
     fs::File,
     io::{self, prelude::*},
     path::Path,
-    process::{Command, Stdio},
 };
 
-const VERSION_VAR: &str = "VERSION";
-const GIT_HEAD: &str = ".git/HEAD";
-
 pub fn main() {
-    if Path::new(GIT_HEAD).exists() {
-        println!("cargo:rustc-rerun-if-changed={}", GIT_HEAD);
+    {
+        let mut config = vergen::Config::default();
+        *config.git_mut().sha_kind_mut() = vergen::ShaKind::Short;
+
+        vergen::vergen(config).unwrap();
     }
+
+    const VERSION_VAR: &str = "VERSION";
+    println!("cargo:rerun-if-env-changed={}", VERSION_VAR);
 
     let version = match env::var(VERSION_VAR) {
         Ok(v) => {
@@ -26,7 +28,7 @@ pub fn main() {
             }
             v
         }
-        Err(_) => BuildInfo::from_git().unwrap_or_default().version,
+        Err(_) => "".to_string(),
     };
 
     println!("cargo:rustc-env={}={}", VERSION_VAR, version);
@@ -56,37 +58,5 @@ pub fn main() {
             .unwrap();
 
         embed_resource::compile(&rc_path);
-    }
-}
-
-struct BuildInfo {
-    version: String,
-}
-
-impl BuildInfo {
-    pub fn from_git() -> io::Result<Self> {
-        let version_output = Command::new("git")
-            .args(["rev-parse", "--short=7", "HEAD"])
-            .stdout(Stdio::piped())
-            .spawn()?
-            .wait_with_output()?;
-
-        version_output
-            .status
-            .code()
-            .filter(|c| *c == 0)
-            .expect("failed to execute version command");
-
-        let version = format!("g{}", String::from_utf8_lossy(&version_output.stdout));
-
-        Ok(Self { version })
-    }
-}
-
-impl Default for BuildInfo {
-    fn default() -> Self {
-        Self {
-            version: "unknown version".to_owned(),
-        }
     }
 }

@@ -37,6 +37,11 @@ features = ["std"]
 version = "1.0.144"
 features = ["derive"]
 
+[build-dependencies.vergen]
+version = "7.5.0"
+default-features = false
+features = ["git"]
+
 [target.'cfg(windows)'.build-dependencies]
 embed-resource = "1.8.0"
 
