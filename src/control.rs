@@ -3,7 +3,7 @@ use std::mem;
 #[derive(Debug)]
 pub struct Instance {
     pub control: Control,
-    pub position: cgmath::Vector3<f32>,
+    pub position: cgmath::Vector2<f32>,
     pub rotation: cgmath::Deg<f32>,
     pub scale: Scale,
 }
@@ -36,7 +36,8 @@ impl Instance {
 
         let rotate = cgmath::Matrix4::from_angle_z(self.rotation);
         let scale = cgmath::Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0);
-        let translate = cgmath::Matrix4::from_translation(self.position);
+        let translate =
+            cgmath::Matrix4::from_translation(cgmath::vec3(self.position.x, self.position.y, 0.0));
 
         InstanceRaw {
             model_matrix: (translate * rotate * scale).into(),

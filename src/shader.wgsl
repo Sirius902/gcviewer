@@ -56,7 +56,7 @@ struct InstanceInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) position: vec3<f32>,
+    @location(0) position: vec2<f32>,
     @location(1) tex_coords: vec2<f32>,
     @location(2) scale: f32,
     @location(3) which: u32,
@@ -88,7 +88,7 @@ fn border_width(in: VertexOutput) -> f32 {
 }
 
 fn clip_circle_button(in: VertexOutput) {
-    let r = length(in.position.xy);
+    let r = length(in.position);
     // TODO: Make border width more accurate.
     if r > 0.5 || ((in.button_pressed == 0u)
         && r < 0.5 - (0.725 * r) * border_width(in)) {
@@ -130,7 +130,7 @@ fn clip_stick(in: VertexOutput) {
         radius *= 0.8;
     }
 
-    let center = in.position.xy + in.stick_position;
+    let center = in.position + in.stick_position;
     let dist = radius - length(center);
 
     let scaled_uv = (in.tex_coords - 0.5) / 0.85 + 0.5;
@@ -154,7 +154,7 @@ fn clip_trigger(in: VertexOutput) {
 
     if in.position.x <= radius - 0.5 {
         // clip left
-        let pos = in.position.xy + vec2<f32>(0.5 - radius, 0.0);
+        let pos = in.position + vec2<f32>(0.5 - radius, 0.0);
         let dist = radius - length(pos);
 
         if dist < 0.0 || ((in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale)
@@ -163,7 +163,7 @@ fn clip_trigger(in: VertexOutput) {
         }
     } else if in.position.x >= 0.5 - radius {
         // clip right
-        let pos = in.position.xy - vec2<f32>(0.5 - radius, 0.0);
+        let pos = in.position - vec2<f32>(0.5 - radius, 0.0);
         let dist = radius - length(pos);
 
         if dist < 0.0 || ((in.position.x + 0.5 > clamp(fill, 0.0, threshold) * scale)
@@ -193,7 +193,7 @@ fn vs_main(
 
     var out: VertexOutput;
     out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
-    out.position = model.position.xyz;
+    out.position = model.position.xy;
     out.tex_coords = model.tex_coords;
     out.scale = instance.scale;
     out.which = instance.which;
