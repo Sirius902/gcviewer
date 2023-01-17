@@ -595,14 +595,14 @@ dependencies = [
 [[package]]
 name = "gcinput"
 version = "0.1.0"
-source = "git+https://github.com/Sirius902/gcfeeder#c4a45c9b98d94e026de29ba1401073e9ad94703d"
+source = "git+https://github.com/Sirius902/gcfeeder#00e865ab4b2a86ece7bcfdab09fe4774904a90b7"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "gcviewer"
-version = "3.0.0"
+version = "0.1.0"
 dependencies = [
  "bincode",
  "bytemuck",
