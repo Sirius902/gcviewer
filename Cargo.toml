@@ -14,7 +14,7 @@ wgpu = "0.14.2"
 winit = "0.27.5"
 
 [dependencies.gcinput]
-git = "https://github.com/Sirius902/gcfeeder"
+git = "https://github.com/Sirius902/gcfeeder/"
 tag = "v3.0.1"
 
 [dependencies.bytemuck]
