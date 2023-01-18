@@ -15,6 +15,7 @@ winit = "0.27.5"
 
 [dependencies.gcinput]
 git = "https://github.com/Sirius902/gcfeeder"
+tag = "v3.0.1"
 
 [dependencies.bytemuck]
 version = "1.12.3"

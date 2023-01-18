@@ -646,7 +646,7 @@ dependencies = [
 [[package]]
 name = "gcinput"
 version = "0.1.0"
-source = "git+https://github.com/Sirius902/gcfeeder#f78ef3b89c0f261be0dc66bc6450347945721275"
+source = "git+https://github.com/Sirius902/gcfeeder?tag=v3.0.1#1bd35788a9f6e03bfc9d3503adb374aa85ada898"
 dependencies = [
  "serde",
 ]
