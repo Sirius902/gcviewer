@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 use std::{
     env, fs,
-    io::{self, Read},
+    io::Read,
     mem,
     net::UdpSocket,
     sync::{
@@ -90,7 +90,10 @@ async fn run(args: &Args, custom_shader: Option<String>) {
 
     let socket = UdpSocket::bind("0.0.0.0:0")
         .and_then(|s| s.connect(("127.0.0.1", args.port)).map(|()| s))
-        .and_then(|s| s.set_nonblocking(true).map(|()| s))
+        .and_then(|s| {
+            s.set_read_timeout(Some(Duration::from_millis(100)))
+                .map(|()| s)
+        })
         .unwrap_or_else(|e| {
             panic!(
                 "Failed to connect to input server on localhost:{}: {}",
@@ -121,10 +124,6 @@ async fn run(args: &Args, custom_shader: Option<String>) {
                         log::error!("Socket received incomplete data of size {}", received);
                         break;
                     }
-                }
-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    thread::sleep(Duration::from_millis(8));
-                    continue;
                 }
                 Err(_) => {}
             }
