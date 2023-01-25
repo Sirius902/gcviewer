@@ -114,18 +114,15 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         while !context.stop_flag.load(Ordering::Acquire) {
             let _ = context.socket.send(&[]);
 
-            match context.socket.recv(&mut data) {
-                Ok(received) => {
-                    if received == data.len() {
-                        let new_input = bincode::deserialize(&data).unwrap();
-                        let mut input = context.input.lock().unwrap();
-                        *input = new_input;
-                    } else {
-                        log::error!("Socket received incomplete data of size {}", received);
-                        break;
-                    }
+            if let Ok(received) = context.socket.recv(&mut data) {
+                if received == data.len() {
+                    let new_input = bincode::deserialize(&data).unwrap();
+                    let mut input = context.input.lock().unwrap();
+                    *input = new_input;
+                } else {
+                    log::error!("Socket received incomplete data of size {}", received);
+                    break;
                 }
-                Err(_) => {}
             }
         }
     })));
