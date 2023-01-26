@@ -533,7 +533,7 @@ impl State {
                 },
                 position: cgmath::vec2(-0.65, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: Scale::Uniform(0.58),
+                scale: Scale::Uniform(0.565),
             },
             Instance {
                 control: Control::Stick {
@@ -542,7 +542,7 @@ impl State {
                 },
                 position: cgmath::vec2(-0.15, 0.0),
                 rotation: cgmath::Deg(0.0),
-                scale: Scale::Uniform(0.58),
+                scale: Scale::Uniform(0.565),
             },
             Instance {
                 control: Control::Trigger {
