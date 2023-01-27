@@ -88,12 +88,12 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         .build(&event_loop)
         .unwrap();
 
+    let sock_timeout = Duration::from_millis(100);
+
     let socket = UdpSocket::bind("0.0.0.0:0")
         .and_then(|s| s.connect(("127.0.0.1", args.port)).map(|()| s))
-        .and_then(|s| {
-            s.set_read_timeout(Some(Duration::from_millis(100)))
-                .map(|()| s)
-        })
+        .and_then(|s| s.set_read_timeout(Some(sock_timeout)).map(|()| s))
+        .and_then(|s| s.set_write_timeout(Some(sock_timeout)).map(|()| s))
         .unwrap_or_else(|e| {
             panic!(
                 "Failed to connect to input server on localhost:{}: {}",
