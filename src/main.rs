@@ -79,7 +79,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title(format!("gcviewer | {}", version_string))
+        .with_title(format!("gcviewer | {version_string}"))
         .with_inner_size(winit::dpi::PhysicalSize {
             width: 512,
             height: 256,
