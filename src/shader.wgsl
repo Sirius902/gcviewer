@@ -66,23 +66,6 @@ struct VertexOutput {
     @location(7) stick_position: vec2<f32>,
 }
 
-fn srgb_to_rgb(v: f32) -> f32 {
-    if v <= 0.04045 {
-        return v / 12.92;
-    } else {
-        return pow((v + 0.055) / 1.055, 2.4);
-    }
-}
-
-fn srgb_to_rgb4(v: vec4<f32>) -> vec4<f32> {
-    return vec4<f32>(
-        srgb_to_rgb(v.r),
-        srgb_to_rgb(v.g),
-        srgb_to_rgb(v.b),
-        v.a,
-    );
-}
-
 fn border_width(in: VertexOutput) -> f32 {
     return 0.095 / in.scale;
 }
@@ -244,5 +227,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
     }
 
-    return srgb_to_rgb4(color);
+    return color;
 }

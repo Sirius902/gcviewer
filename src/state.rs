@@ -40,8 +40,12 @@ impl State {
     pub async fn new(window: &Window, custom_shader: Option<String>) -> Self {
         let size = window.inner_size();
 
-        let instance = wgpu::Instance::new(wgpu::Backend::Vulkan.into());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backend::Vulkan.into(),
+            ..Default::default()
+        });
+        // This can only return `Err` on the web.
+        let surface = unsafe { instance.create_surface(window) }.unwrap();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
@@ -63,13 +67,16 @@ impl State {
             .await
             .unwrap();
 
+        let caps = surface.get_capabilities(&adapter);
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: caps.formats[0],
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: Vec::new(),
         };
         surface.configure(&device, &config);
 
@@ -98,6 +105,7 @@ impl State {
                 format: wgpu::TextureFormat::R8Unorm,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 label: Some(name),
+                view_formats: &[],
             });
 
             queue.write_texture(

@@ -10,8 +10,8 @@ cgmath = "0.18.0"
 enclose = "1.1.8"
 env_logger = "0.10.0"
 pollster = "0.2.5"
-wgpu = "0.14.2"
-winit = "0.27.5"
+wgpu = "0.15.0"
+winit = "0.28.0"
 
 [dependencies.gcinput]
 git = "https://github.com/Sirius902/gcfeeder/"
