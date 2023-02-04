@@ -17,6 +17,7 @@ use enclose::enclose;
 use gcinput::Input;
 use gcviewer::state::State;
 use winit::{
+    dpi::PhysicalSize,
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Icon, WindowBuilder},
@@ -128,7 +129,6 @@ async fn run(args: &Args, custom_shader: Option<String>) {
     })));
 
     let mut state = State::new(&window, custom_shader).await;
-    let mut outdated = false;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent {
@@ -152,24 +152,25 @@ async fn run(args: &Args, custom_shader: Option<String>) {
             _ => {}
         },
         Event::RedrawRequested(window_id) if window_id == window.id() => {
-            if !outdated {
+            {
                 let input = context.input.lock().unwrap();
                 state.update(&input);
             }
 
             match state.render() {
-                Ok(()) => outdated = false,
-                Err(wgpu::SurfaceError::Outdated) => {
-                    outdated = true;
-                    thread::sleep(Duration::from_millis(16));
-                }
+                Ok(()) => {}
                 Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
                 Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                 Err(e) => log::error!("{:?}", e),
             }
         }
         Event::MainEventsCleared => {
-            window.request_redraw();
+            let PhysicalSize { width, height } = window.inner_size();
+            if width != 0 && height != 0 {
+                window.request_redraw();
+            } else {
+                thread::sleep(Duration::from_millis(16));
+            }
         }
         _ => {}
     });
