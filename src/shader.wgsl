@@ -17,24 +17,21 @@ var<uniform> resolution: vec2<f32>;
 @group(1) @binding(2)
 var<uniform> time: f32;
 
-/*
-Corresponding `which` values
-0 -> A
-1 -> B
-2 -> X
-3 -> Y
-4 -> Start
-5 -> Z
-6 -> Main Stick
-7 -> C Stick
-8 -> Left Trigger
-9 -> Right Trigger
-10 -> Dpad Up
-11 -> Dpad Left
-12 -> Dpad Right
-13 -> Dpad Down
-14 -> Background
-*/
+const BUTTON_A = 0u;
+const BUTTON_B = 1u;
+const BUTTON_X = 2u;
+const BUTTON_Y = 3u;
+const BUTTON_START = 4u;
+const BUTTON_Z = 5u;
+const STICK_MAIN = 6u;
+const STICK_C = 7u;
+const TRIGGER_LEFT = 8u;
+const TRIGGER_RIGHT = 9u;
+const BUTTON_UP = 10u;
+const BUTTON_LEFT = 11u;
+const BUTTON_RIGHT = 12u;
+const BUTTON_DOWN = 13u;
+const BACKGROUND = 14u;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
