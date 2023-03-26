@@ -75,7 +75,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
     let version_string = if !env!("VERSION").is_empty() {
         env!("VERSION")
     } else {
-        concat!("g", env!("VERGEN_GIT_SHA_SHORT"))
+        concat!("g", env!("VERGEN_GIT_SHA"))
     };
 
     let event_loop = EventLoop::new();

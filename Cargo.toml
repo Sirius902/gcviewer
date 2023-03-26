@@ -11,7 +11,7 @@ enclose = "1.1.8"
 env_logger = "0.10.0"
 pollster = "0.3.0"
 wgpu = "0.15.0"
-winit = "0.28.0"
+winit = "0.28.3"
 
 [dependencies.gcinput]
 git = "https://github.com/Sirius902/gcfeeder/"
@@ -22,11 +22,11 @@ version = "1.12.3"
 features = ["derive"]
 
 [dependencies.clap]
-version = "4.1.1"
+version = "4.1.13"
 features = ["derive"]
 
 [dependencies.image]
-version = "0.24.5"
+version = "0.24.6"
 default-features = false
 features = ["png"]
 
@@ -35,16 +35,16 @@ version = "0.4.17"
 features = ["std"]
 
 [dependencies.serde]
-version = "1.0.144"
+version = "1.0.158"
 features = ["derive"]
 
 [build-dependencies.vergen]
-version = "7.5.0"
+version = "8.0.0"
 default-features = false
-features = ["git"]
+features = ["git", "gitcl"]
 
 [target.'cfg(windows)'.build-dependencies]
-embed-resource = "1.8.0"
+embed-resource = "2.0.0"
 
 [target.'cfg(windows)'.build-dependencies.image]
 version = "0.24.5"
