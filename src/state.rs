@@ -67,11 +67,9 @@ impl State {
             .await
             .unwrap();
 
-        let caps = surface.get_capabilities(&adapter);
-
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: caps.formats[0],
+            format: wgpu::TextureFormat::Bgra8Unorm,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::AutoVsync,
