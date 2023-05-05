@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
   workflow_dispatch:
 
@@ -13,23 +13,23 @@ jobs:
     env:
       CARGO_BUILD_TARGET: "x86_64-pc-windows-msvc"
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-    - name: Build
-      run: cargo build
-    - name: Run Tests
-      run: cargo test
-    - name: Clippy Lints
-      run: cargo clippy
-    - name: Upload gcviewer
-      uses: actions/upload-artifact@v3
-      with:
-        name: gcviewer
-        path: |
-          target/${{ env.CARGO_BUILD_TARGET }}/debug/gcviewer.exe
-          target/${{ env.CARGO_BUILD_TARGET }}/debug/gcviewer.pdb
-    - name: Upload Themes
-      uses: actions/upload-artifact@v3
-      with:
-        name: theme
-        path: theme
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: cargo build
+      - name: Run Tests
+        run: cargo test
+      - name: Clippy Lints
+        run: cargo clippy
+      - name: Upload gcviewer
+        uses: actions/upload-artifact@v3
+        with:
+          name: gcviewer
+          path: |
+            target/${{ env.CARGO_BUILD_TARGET }}/debug/gcviewer.exe
+            target/${{ env.CARGO_BUILD_TARGET }}/debug/gcviewer.pdb
+      - name: Upload Themes
+        uses: actions/upload-artifact@v3
+        with:
+          name: theme
+          path: theme
