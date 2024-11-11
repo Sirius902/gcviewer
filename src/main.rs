@@ -8,7 +8,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-    thread,
+    thread::{self, JoinHandle},
     time::Duration,
 };
 
@@ -17,10 +17,11 @@ use enclose::enclose;
 use gcinput::Input;
 use gcviewer::state::State;
 use winit::{
+    application::ApplicationHandler,
     dpi::PhysicalSize,
     event::*,
-    event_loop::{ControlFlow, EventLoop},
-    window::{Icon, WindowBuilder},
+    event_loop::EventLoop,
+    window::{Icon, Window, WindowAttributes},
 };
 
 const ICON_FILE: &[u8] = include_bytes!("../resource/icon.png");
@@ -64,6 +65,95 @@ struct SocketContext {
     stop_flag: AtomicBool,
 }
 
+struct App<'a> {
+    version_string: String,
+    icon: Option<Icon>,
+    custom_shader: Option<String>,
+    context: Arc<SocketContext>,
+    socket_thread: Option<JoinHandle<()>>,
+    window: Option<Arc<Window>>,
+    state: Option<State<'a>>,
+}
+
+impl ApplicationHandler for App<'_> {
+    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        let window = Arc::new(
+            event_loop
+                .create_window(
+                    WindowAttributes::default()
+                        .with_title(format!("gcviewer | {}", self.version_string))
+                        .with_inner_size(winit::dpi::PhysicalSize {
+                            width: 512,
+                            height: 256,
+                        })
+                        .with_window_icon(Some(self.icon.take().unwrap())),
+                )
+                .unwrap(),
+        );
+
+        self.window = Some(window.clone());
+        self.state = Some(pollster::block_on(State::new(
+            window.clone(),
+            self.custom_shader.take(),
+        )));
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: WindowEvent,
+    ) {
+        let window = self.window.as_ref().unwrap();
+        let state = self.state.as_mut().unwrap();
+        if window_id != window.id() {
+            return;
+        }
+
+        match event {
+            WindowEvent::CloseRequested => {
+                self.context.stop_flag.store(true, Ordering::Release);
+                if let Some(t) = self.socket_thread.take() {
+                    mem::drop(t.join());
+                }
+
+                event_loop.exit();
+            }
+            WindowEvent::Resized(physical_size) => {
+                state.resize(physical_size);
+            }
+            WindowEvent::ScaleFactorChanged { .. } => {
+                state.resize(window.inner_size());
+            }
+            WindowEvent::RedrawRequested => {
+                {
+                    let input = self.context.input.lock().unwrap();
+                    state.update(&input);
+                }
+
+                match state.render() {
+                    Ok(()) => {}
+                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                    Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
+                    Err(e) => log::error!("{:?}", e),
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+        let window = self.window.as_ref().unwrap();
+
+        let PhysicalSize { width, height } = window.inner_size();
+        if width != 0 && height != 0 {
+            window.request_redraw();
+        } else {
+            thread::sleep(Duration::from_millis(16));
+        }
+    }
+}
+
 async fn run(args: &Args, custom_shader: Option<String>) {
     let icon = {
         let icon = image::load_from_memory(ICON_FILE).unwrap();
@@ -77,17 +167,6 @@ async fn run(args: &Args, custom_shader: Option<String>) {
     } else {
         concat!("g", env!("VERGEN_GIT_SHA"))
     };
-
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title(format!("gcviewer | {version_string}"))
-        .with_inner_size(winit::dpi::PhysicalSize {
-            width: 512,
-            height: 256,
-        })
-        .with_window_icon(Some(icon))
-        .build(&event_loop)
-        .unwrap();
 
     const SOCK_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -108,7 +187,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         stop_flag: AtomicBool::new(false),
     });
 
-    let mut socket_thread = Some(thread::spawn(enclose!((context) move || {
+    let socket_thread = Some(thread::spawn(enclose!((context) move || {
         let input_size = bincode::serialized_size(&Input::default()).unwrap();
         let mut data = vec![0u8; input_size as usize];
 
@@ -128,50 +207,15 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         }
     })));
 
-    let mut state = State::new(&window, custom_shader).await;
-
-    event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if window_id == window.id() => match event {
-            WindowEvent::CloseRequested => {
-                context.stop_flag.store(true, Ordering::Release);
-                if let Some(t) = socket_thread.take() {
-                    mem::drop(t.join());
-                }
-
-                *control_flow = ControlFlow::Exit;
-            }
-            WindowEvent::Resized(physical_size) => {
-                state.resize(*physical_size);
-            }
-            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                state.resize(**new_inner_size);
-            }
-            _ => {}
-        },
-        Event::RedrawRequested(window_id) if window_id == window.id() => {
-            {
-                let input = context.input.lock().unwrap();
-                state.update(&input);
-            }
-
-            match state.render() {
-                Ok(()) => {}
-                Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
-                Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                Err(e) => log::error!("{:?}", e),
-            }
-        }
-        Event::MainEventsCleared => {
-            let PhysicalSize { width, height } = window.inner_size();
-            if width != 0 && height != 0 {
-                window.request_redraw();
-            } else {
-                thread::sleep(Duration::from_millis(16));
-            }
-        }
-        _ => {}
-    });
+    let event_loop = EventLoop::new().unwrap();
+    let mut app = App {
+        version_string: version_string.to_string(),
+        icon: Some(icon),
+        custom_shader,
+        context,
+        socket_thread,
+        window: Default::default(),
+        state: Default::default(),
+    };
+    let _ = event_loop.run_app(&mut app);
 }
