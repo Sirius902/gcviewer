@@ -1,5 +1,5 @@
 {
-  description = "flake for gcfeeder";
+  description = "flake for gcviewer";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=24.05";
