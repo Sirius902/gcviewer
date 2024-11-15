@@ -36,7 +36,7 @@ pub struct State<'a> {
     instance_buffer: wgpu::Buffer,
 }
 
-impl<'a> State<'a> {
+impl State<'_> {
     pub async fn new(window: Arc<Window>, custom_shader: Option<String>) -> Self {
         let size = window.inner_size();
 

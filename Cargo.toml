@@ -38,10 +38,10 @@ features = ["std"]
 version = "1"
 features = ["derive"]
 
-[build-dependencies.vergen]
-version = "8"
+[build-dependencies.vergen-git2]
+version = "1"
 default-features = false
-features = ["git", "gitcl"]
+features = []
 
 [target.'cfg(windows)'.build-dependencies]
 embed-resource = "3"

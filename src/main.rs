@@ -165,7 +165,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
     let version_string = if !env!("VERSION").is_empty() {
         env!("VERSION")
     } else {
-        concat!("g", env!("VERGEN_GIT_SHA"))
+        env!("VERGEN_GIT_DESCRIBE")
     };
 
     const SOCK_TIMEOUT: Duration = Duration::from_millis(100);
