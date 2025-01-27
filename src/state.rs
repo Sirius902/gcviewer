@@ -41,7 +41,7 @@ impl State<'_> {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backend::Vulkan.into(),
+            backends: wgpu::Backends::PRIMARY,
             ..Default::default()
         });
         // This can only return `Err` on the web.
