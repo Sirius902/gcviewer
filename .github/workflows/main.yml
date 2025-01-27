@@ -12,6 +12,7 @@ jobs:
     runs-on: windows-latest
     env:
       CARGO_BUILD_TARGET: "x86_64-pc-windows-msvc"
+      CI: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v3
