@@ -82,7 +82,7 @@
               install -Dm644 resource/icon.png $out/share/pixmaps/gcviewer.png
             '';
 
-            env.VERSION = "v${(craneLib.crateNameFromCargoToml { inherit src; }).version}";
+            VERSION = "v${(craneLib.crateNameFromCargoToml { inherit src; }).version}";
 
             desktopItems = with pkgs; [
               (makeDesktopItem {
@@ -122,9 +122,12 @@
           devShells.default = craneLib.devShell {
             checks = self.checks.${system};
 
-            packages = [ pkgs.taplo-cli ];
+            packages = [
+              pkgs.taplo-cli
+              pkgs.rust-analyzer-nightly
+            ];
 
-            env.LD_LIBRARY_PATH = lib.makeLibraryPath commonArgs.buildInputs;
+            LD_LIBRARY_PATH = lib.makeLibraryPath commonArgs.buildInputs;
           };
         };
     };
