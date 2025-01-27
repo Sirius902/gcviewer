@@ -1,8 +1,10 @@
 [package]
-name = "gcviewer"
-version = "0.1.0"
-repository = "https://github.com/Sirius902/gcviewer/"
+authors = ["Sirius902"]
 edition = "2021"
+name = "gcviewer"
+readme = "README.md"
+repository = "https://github.com/Sirius902/gcviewer"
+version = "0.1.0"
 
 [dependencies]
 bincode = "1"
@@ -14,39 +16,39 @@ wgpu = "23"
 winit = "0.30"
 
 [dependencies.gcinput]
-git = "https://github.com/Sirius902/gcfeeder/"
+git = "https://github.com/Sirius902/gcfeeder"
 tag = "v3.0.1"
 
 [dependencies.bytemuck]
-version = "1"
 features = ["derive"]
+version = "1"
 
 [dependencies.clap]
-version = "4"
 features = ["derive"]
+version = "4"
 
 [dependencies.image]
-version = "0.25"
 default-features = false
 features = ["png"]
+version = "0.25"
 
 [dependencies.log]
-version = "0.4"
 features = ["std"]
+version = "0.4"
 
 [dependencies.serde]
-version = "1"
 features = ["derive"]
+version = "1"
 
 [build-dependencies.vergen-git2]
-version = "1"
 default-features = false
 features = []
+version = "1"
 
 [target.'cfg(windows)'.build-dependencies]
 embed-resource = "3"
 
 [target.'cfg(windows)'.build-dependencies.image]
-version = "0.25"
 default-features = false
 features = ["png", "ico"]
+version = "0.25"
