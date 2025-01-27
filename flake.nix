@@ -16,6 +16,8 @@
       systems = [
         "x86_64-linux"
         "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
       ];
 
       perSystem = { system, ... }:
@@ -96,7 +98,7 @@
 
             meta = with lib; {
               homepage = "https://github.com/Sirius902/gcviewer";
-              platforms = platforms.linux;
+              platforms = platforms.linux ++ platforms.darwin;
               mainProgram = "gcviewer";
             };
           });
