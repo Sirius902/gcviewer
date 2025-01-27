@@ -70,7 +70,10 @@
             inherit cargoArtifacts;
             pname = "gcviewer";
 
-            nativeBuildInputs = with pkgs; [ makeWrapper ];
+            nativeBuildInputs = with pkgs; [
+              copyDesktopItems
+              makeWrapper
+            ];
 
             postInstall = ''
               wrapProgram $out/bin/gcviewer \
@@ -89,9 +92,9 @@
             ];
 
             meta = with lib; {
-              mainProgram = "gcviewer";
               homepage = "https://github.com/Sirius902/gcviewer";
               platforms = platforms.linux;
+              mainProgram = "gcviewer";
             };
           });
         in
