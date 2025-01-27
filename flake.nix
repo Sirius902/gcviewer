@@ -78,6 +78,8 @@
             postInstall = ''
               wrapProgram $out/bin/gcviewer \
                 --suffix LD_LIBRARY_PATH : ${lib.makeLibraryPath commonArgs.buildInputs}
+
+              install -Dm644 resource/icon.png $out/share/pixmaps/gcviewer.png
             '';
 
             env.VERSION = "v${(craneLib.crateNameFromCargoToml { inherit src; }).version}";
@@ -85,6 +87,7 @@
             desktopItems = with pkgs; [
               (makeDesktopItem {
                 name = "gcviewer";
+                icon = "gcviewer";
                 exec = "gcviewer %U";
                 desktopName = "gcviewer";
                 categories = [ "Utility" ];
