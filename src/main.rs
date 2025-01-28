@@ -104,8 +104,12 @@ impl ApplicationHandler for App<'_> {
         window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        let window = self.window.as_ref().unwrap();
-        let state = self.state.as_mut().unwrap();
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+        let Some(state) = self.state.as_mut() else {
+            return;
+        };
         if window_id != window.id() {
             return;
         }
@@ -115,6 +119,12 @@ impl ApplicationHandler for App<'_> {
                 self.context.stop_flag.store(true, Ordering::Release);
                 if let Some(t) = self.socket_thread.take() {
                     mem::drop(t.join());
+                }
+
+                // FUTURE(Sirius902) Explicitly drop state before exiting event loop otherwise we
+                // crash in some wayland code. Fix the surface lifetimes in [`State`] so that this won't happen?
+                if let Some(state) = self.state.take() {
+                    mem::drop(state);
                 }
 
                 event_loop.exit();
