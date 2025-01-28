@@ -84,7 +84,8 @@
               install -Dm644 resource/icon.png $out/share/pixmaps/gcviewer.png
             '';
 
-            VERSION = "v${(craneLib.crateNameFromCargoToml { inherit src; }).version}";
+            VERSION = let version = (craneLib.crateNameFromCargoToml { inherit src; }).version; in
+              "v${version}-${self.shortRev or self.dirtyShortRev}";
 
             desktopItems = with pkgs; [
               (makeDesktopItem {
