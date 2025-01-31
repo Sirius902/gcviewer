@@ -71,6 +71,7 @@
           gcviewer = craneLib.buildPackage (commonArgs // {
             inherit cargoArtifacts;
             pname = "gcviewer";
+            cargoExtraArgs = "--no-default-features";
 
             nativeBuildInputs = with pkgs; [
               copyDesktopItems
@@ -84,7 +85,7 @@
               install -Dm644 resource/icon.png $out/share/pixmaps/gcviewer.png
             '';
 
-            VERSION = let version = (craneLib.crateNameFromCargoToml { inherit src; }).version; in
+            GCVIEWER_VERSION = let version = (craneLib.crateNameFromCargoToml { inherit src; }).version; in
               "v${version}-${self.shortRev or self.dirtyShortRev}";
 
             desktopItems = with pkgs; [

@@ -171,12 +171,6 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         Icon::from_rgba(rgba.to_vec(), width, height).unwrap()
     };
 
-    let version_string = if !env!("VERSION").is_empty() {
-        env!("VERSION")
-    } else {
-        env!("VERGEN_GIT_DESCRIBE")
-    };
-
     const SOCK_TIMEOUT: Duration = Duration::from_millis(100);
 
     let socket = UdpSocket::bind("0.0.0.0:0")
@@ -218,7 +212,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
 
     let event_loop = EventLoop::new().unwrap();
     let mut app = App {
-        version_string: version_string.to_string(),
+        version_string: env!("GCVIEWER_VERSION").to_string(),
         icon: Some(icon),
         custom_shader,
         context,
