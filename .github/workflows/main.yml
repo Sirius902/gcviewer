@@ -14,7 +14,7 @@ jobs:
       CARGO_BUILD_TARGET: "x86_64-pc-windows-msvc"
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build
         run: cargo build
       - name: Run Tests
@@ -22,14 +22,14 @@ jobs:
       - name: Clippy Lints
         run: cargo clippy
       - name: Upload gcviewer
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gcviewer
           path: |
             target/${{ env.CARGO_BUILD_TARGET }}/debug/gcviewer.exe
             target/${{ env.CARGO_BUILD_TARGET }}/debug/gcviewer.pdb
       - name: Upload Themes
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: theme
           path: theme
