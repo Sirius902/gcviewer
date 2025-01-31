@@ -1,4 +1,3 @@
-#![deny(clippy::all)]
 use std::mem;
 
 pub mod camera;

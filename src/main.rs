@@ -1,4 +1,3 @@
-#![deny(clippy::all)]
 use std::{
     env, fs,
     io::Read,
