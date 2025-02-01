@@ -88,7 +88,7 @@ impl ApplicationHandler for App<'_> {
                 .create_window(
                     WindowAttributes::default()
                         .with_title(format!("gcviewer | {}", self.version_string))
-                        .with_inner_size(winit::dpi::PhysicalSize {
+                        .with_inner_size(winit::dpi::LogicalSize {
                             width: 512,
                             height: 256,
                         })
