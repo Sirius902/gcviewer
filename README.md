@@ -23,6 +23,16 @@ For info on the program arguments, run with `--help`.
 
 ## Themes
 
-To customize the theme of the input viewer, put a `shader.wgsl` according to
-the specification in the same directory as the executable. The default theme
-can be found at `src/shader.wgsl`. Other themes can be found in `theme`.
+To customize the theme of the input viewer, place a `shader.wgsl` according to
+the specification in one of the following locations, the first path that exists
+will be used.
+
+* The same directory as the executable.
+* Windows
+  * `%AppData%\gcviewer\shader.wgsl`
+* Linux
+  * `$XDG_CONFIG_HOME/gcviewer/shader.wgsl`
+  * `$HOME/.config/gcviewer/shader.wgsl`
+
+The default theme can be found at `src/shader.wgsl`. Other themes can be found
+in `theme`.

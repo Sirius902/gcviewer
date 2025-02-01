@@ -36,15 +36,22 @@ fn main() {
 
     env_logger::init();
 
-    let custom_shader = fs::File::open("shader.wgsl")
+    let args = Args::parse();
+    pollster::block_on(run(&args, load_custom_shader()));
+}
+
+fn load_custom_shader() -> Option<String> {
+    fs::File::open("shader.wgsl")
+        .ok()
+        .or_else(|| {
+            directories::BaseDirs::new()
+                .map(|dirs| dirs.config_dir().join("gcviewer").join("shader.wgsl"))
+                .and_then(|path| fs::File::open(path).ok())
+        })
         .and_then(|mut f| {
             let mut s = String::new();
-            f.read_to_string(&mut s).map(|_| s)
+            f.read_to_string(&mut s).map(|_| s).ok()
         })
-        .ok();
-
-    let args = Args::parse();
-    pollster::block_on(run(&args, custom_shader));
 }
 
 #[derive(Parser)]
