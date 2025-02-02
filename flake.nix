@@ -54,7 +54,7 @@
             inherit src;
             strictDeps = true;
 
-            buildInputs = with pkgs; [
+            buildInputs = with pkgs; (lib.optionals stdenv.isLinux [
               libGL
               libxkbcommon
               vulkan-loader
@@ -63,7 +63,7 @@
               xorg.libXcursor
               xorg.libxcb
               xorg.libXi
-            ];
+            ]);
           };
 
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
