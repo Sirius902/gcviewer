@@ -99,6 +99,7 @@
             ];
 
             meta = with lib; {
+              description = "A customizable input viewer.";
               homepage = "https://github.com/Sirius902/gcviewer";
               platforms = platforms.linux ++ platforms.darwin;
               mainProgram = "gcviewer";
