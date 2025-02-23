@@ -6,54 +6,31 @@ readme = "README.md"
 repository = "https://github.com/Sirius902/gcviewer"
 version = "0.1.0"
 
-[dependencies]
-bincode = "1"
-cgmath = "0.18"
-directories = "6"
-enclose = "1"
-env_logger = "0.11"
-pollster = "0.4"
-wgpu = "24"
-winit = "0.30"
-
-[dependencies.gcinput]
-git = "https://github.com/Sirius902/gcfeeder"
-tag = "v3.0.1"
-
-[dependencies.bytemuck]
-features = ["derive"]
-version = "1"
-
-[dependencies.clap]
-features = ["derive"]
-version = "4"
-
-[dependencies.image]
-default-features = false
-features = ["png"]
-version = "0.25"
-
-[dependencies.log]
-features = ["std"]
-version = "0.4"
-
-[dependencies.serde]
-features = ["derive"]
-version = "1"
-
-[build-dependencies.git2]
-default-features = false
-features = []
-optional = true
-version = "0.20"
+[build-dependencies]
+git2 = { version = "0.20", default-features = false, optional = true }
 
 [target.'cfg(windows)'.build-dependencies]
 embed-resource = "3"
+image = { version = "0.25", features = [
+  "png",
+  "ico",
+], default-features = false }
 
-[target.'cfg(windows)'.build-dependencies.image]
-default-features = false
-features = ["png", "ico"]
-version = "0.25"
+[dependencies]
+bincode = "1"
+bytemuck = { version = "1", features = ["derive"] }
+cgmath = "0.18"
+clap = { version = "4", features = ["derive"] }
+directories = "6"
+enclose = "1"
+env_logger = "0.11"
+gcinput = { git = "https://github.com/Sirius902/gcfeeder", tag = "v3.0.1" }
+image = { version = "0.25", features = ["png"], default-features = false }
+log = { version = "0.4", features = ["std"] }
+pollster = "0.4"
+serde = { version = "1", features = ["derive"] }
+wgpu = "24"
+winit = "0.30"
 
 [features]
 default = ["git-version"]
