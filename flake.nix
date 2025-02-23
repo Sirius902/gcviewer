@@ -11,8 +11,15 @@
     };
   };
 
-  outputs = { self, nixpkgs, crane, fenix, flake-parts, ... }@inputs:
-    flake-parts.lib.mkFlake { inherit inputs; } {
+  outputs = {
+    self,
+    nixpkgs,
+    crane,
+    fenix,
+    flake-parts,
+    ...
+  } @ inputs:
+    flake-parts.lib.mkFlake {inherit inputs;} {
       systems = [
         "x86_64-linux"
         "aarch64-linux"
@@ -20,55 +27,56 @@
         "aarch64-darwin"
       ];
 
-      perSystem = { system, ... }:
-        let
-          pkgs = import nixpkgs {
-            inherit system;
+      perSystem = {system, ...}: let
+        pkgs = import nixpkgs {
+          inherit system;
 
-            overlays = [ fenix.overlays.default ];
-          };
+          overlays = [fenix.overlays.default];
+        };
 
-          inherit (pkgs) lib;
+        inherit (pkgs) lib;
 
-          toolchain = fenix.packages.${system}.fromToolchainFile {
-            file = ./rust-toolchain.toml;
-            sha256 = "sha256-rqQlvQj2k8ohzPcGAr7kCsd2zkt033PaUbQWkNWWJd8=";
-          };
+        toolchain = fenix.packages.${system}.fromToolchainFile {
+          file = ./rust-toolchain.toml;
+          sha256 = "sha256-rqQlvQj2k8ohzPcGAr7kCsd2zkt033PaUbQWkNWWJd8=";
+        };
 
-          craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
 
-          unfilteredRoot = ./.;
-          src = lib.fileset.toSource {
-            root = unfilteredRoot;
-            fileset = lib.fileset.unions [
-              (craneLib.fileset.commonCargoSources unfilteredRoot)
-              (lib.fileset.fileFilter
-                (file: lib.any file.hasExt [ "wgsl" ])
-                ./src
-              )
-              (lib.fileset.maybeMissing ./resource)
-            ];
-          };
+        unfilteredRoot = ./.;
+        src = lib.fileset.toSource {
+          root = unfilteredRoot;
+          fileset = lib.fileset.unions [
+            (craneLib.fileset.commonCargoSources unfilteredRoot)
+            (
+              lib.fileset.fileFilter
+              (file: lib.any file.hasExt ["wgsl"])
+              ./src
+            )
+            (lib.fileset.maybeMissing ./resource)
+          ];
+        };
 
-          commonArgs = {
-            inherit src;
-            strictDeps = true;
+        commonArgs = {
+          inherit src;
+          strictDeps = true;
 
-            buildInputs = with pkgs; (lib.optionals stdenv.isLinux [
-              libGL
-              libxkbcommon
-              vulkan-loader
-              wayland
-              xorg.libX11
-              xorg.libXcursor
-              xorg.libxcb
-              xorg.libXi
-            ]);
-          };
+          buildInputs = with pkgs; (lib.optionals stdenv.isLinux [
+            libGL
+            libxkbcommon
+            vulkan-loader
+            wayland
+            xorg.libX11
+            xorg.libXcursor
+            xorg.libxcb
+            xorg.libXi
+          ]);
+        };
 
-          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-          gcviewer = craneLib.buildPackage (commonArgs // {
+        gcviewer = craneLib.buildPackage (commonArgs
+          // {
             inherit cargoArtifacts;
             pname = "gcviewer";
             cargoExtraArgs = "--no-default-features";
@@ -85,8 +93,9 @@
               install -Dm644 resource/icon.png $out/share/pixmaps/gcviewer.png
             '';
 
-            GCVIEWER_VERSION = let version = (craneLib.crateNameFromCargoToml { inherit src; }).version; in
-              "v${version}-${self.shortRev or self.dirtyShortRev}";
+            GCVIEWER_VERSION = let
+              version = (craneLib.crateNameFromCargoToml {inherit src;}).version;
+            in "v${version}-${self.shortRev or self.dirtyShortRev}";
 
             desktopItems = with pkgs; [
               (makeDesktopItem {
@@ -94,7 +103,7 @@
                 icon = "gcviewer";
                 exec = "gcviewer %U";
                 desktopName = "gcviewer";
-                categories = [ "Utility" ];
+                categories = ["Utility"];
               })
             ];
 
@@ -105,20 +114,30 @@
               mainProgram = "gcviewer";
             };
           });
-        in
+      in
         with pkgs; {
-          formatter = nixpkgs-fmt;
+          formatter = alejandra;
 
           checks = {
             inherit gcviewer;
 
-            gcviewer-clippy = craneLib.cargoClippy (commonArgs // {
-              inherit cargoArtifacts;
-            });
+            gcviewer-clippy = craneLib.cargoClippy (commonArgs
+              // {
+                inherit cargoArtifacts;
+              });
 
             gcviewer-fmt = craneLib.cargoFmt {
               inherit src;
             };
+          };
+
+          apps.fmt = {
+            type = "app";
+            program = writeShellScriptBin "fmt" ''
+              cargo fmt
+              taplo fmt
+              nix fmt
+            '';
           };
 
           packages.default = gcviewer;
