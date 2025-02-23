@@ -23,12 +23,12 @@ cgmath = "0.18"
 clap = { version = "4", features = ["derive"] }
 directories = "6"
 enclose = "1"
-env_logger = "0.11"
 gcinput = { git = "https://github.com/Sirius902/gcfeeder", tag = "v3.0.1" }
 image = { version = "0.25", features = ["png"], default-features = false }
-log = { version = "0.4", features = ["std"] }
 pollster = "0.4"
 serde = { version = "1", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 wgpu = "24"
 winit = "0.30"
 

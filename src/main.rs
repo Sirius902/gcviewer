@@ -15,6 +15,7 @@ use clap::Parser;
 use enclose::enclose;
 use gcinput::Input;
 use gcviewer::state::State;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -34,7 +35,10 @@ fn main() {
     )
     .expect("Failed to set current working directory");
 
-    env_logger::init();
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env())
+        .init();
 
     let args = Args::parse();
     pollster::block_on(run(&args, load_custom_shader()));
@@ -151,7 +155,7 @@ impl ApplicationHandler for App<'_> {
                     Ok(()) => {}
                     Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
                     Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
-                    Err(e) => log::error!("{:?}", e),
+                    Err(e) => tracing::error!("{:?}", e),
                 }
             }
             _ => {}
@@ -210,7 +214,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
                     let mut input = context.input.lock().unwrap();
                     *input = new_input;
                 } else {
-                    log::error!("Socket received incomplete data of size {}", received);
+                    tracing::error!("Socket received incomplete data of size {}", received);
                     break;
                 }
             }
