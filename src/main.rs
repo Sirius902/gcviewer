@@ -1,28 +1,22 @@
-use std::{
-    env, fs,
-    io::Read,
-    mem,
-    net::UdpSocket,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
-    thread::{self, JoinHandle},
-    time::Duration,
-};
+use std::io::Read;
+use std::net::UdpSocket;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
+use std::time::Duration;
+use std::{env, fs, mem};
 
 use clap::Parser;
 use enclose::enclose;
 use gcinput::Input;
 use gcviewer::state::State;
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
-use winit::{
-    application::ApplicationHandler,
-    dpi::PhysicalSize,
-    event::*,
-    event_loop::EventLoop,
-    window::{Icon, Window, WindowAttributes},
-};
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::{fmt, EnvFilter};
+use winit::application::ApplicationHandler;
+use winit::dpi::PhysicalSize;
+use winit::event::*;
+use winit::event_loop::EventLoop;
+use winit::window::{Icon, Window, WindowAttributes};
 
 const ICON_FILE: &[u8] = include_bytes!("../resource/icon.png");
 

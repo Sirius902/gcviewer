@@ -1,14 +1,13 @@
-use std::{sync::Arc, time};
+use std::sync::Arc;
+use std::time;
 
 use gcinput::Input;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
-use crate::{
-    camera::{Camera, CameraUniform},
-    control::{Button, Control, Instance, InstanceRaw, Misc, Scale, Stick, Trigger},
-    Vertex, INDICES, VERTICES,
-};
+use crate::camera::{Camera, CameraUniform};
+use crate::control::{Button, Control, Instance, InstanceRaw, Misc, Scale, Stick, Trigger};
+use crate::{Vertex, INDICES, VERTICES};
 
 const BEAN_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/bean.png");
 const Z_BUTTON_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/z-button.png");
