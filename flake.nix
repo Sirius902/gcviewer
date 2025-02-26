@@ -150,6 +150,7 @@
               pkgs.lldb
               pkgs.rust-analyzer-nightly
               pkgs.taplo-cli
+              pkgs.just
             ];
 
             LD_LIBRARY_PATH = lib.makeLibraryPath commonArgs.buildInputs;
