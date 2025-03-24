@@ -61,6 +61,10 @@
           inherit src;
           strictDeps = true;
 
+          nativeBuildInputs = with pkgs; (lib.optionals stdenv.isLinux [
+            pkg-config
+          ]);
+
           buildInputs = with pkgs; (lib.optionals stdenv.isLinux [
             libGL
             libxkbcommon
@@ -70,6 +74,8 @@
             xorg.libXcursor
             xorg.libxcb
             xorg.libXi
+
+            libudev-zero
           ]);
         };
 

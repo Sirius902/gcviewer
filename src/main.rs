@@ -8,10 +8,12 @@ use std::{env, fs, mem};
 
 use clap::Parser;
 use enclose::enclose;
-use gcinput::Input;
+use gcinput::{Input, Stick};
 use gcviewer::state::State;
+use serialport5::SerialPortBuilder;
+use tracing::warn;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::EnvFilter;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::*;
@@ -30,8 +32,13 @@ fn main() {
     .expect("Failed to set current working directory");
 
     tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(EnvFilter::from_default_env())
+        .with(tracing_subscriber::fmt::layer().with_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                EnvFilter::builder()
+                    .parse(["gcviewer=debug"].join(","))
+                    .expect("env filter string parses")
+            }),
+        ))
         .init();
 
     let args = Args::parse();
@@ -66,7 +73,12 @@ struct Args {
 struct SocketContext {
     socket: UdpSocket,
     input: Arc<Mutex<Input>>,
-    stop_flag: AtomicBool,
+    stop_flag: Arc<AtomicBool>,
+}
+
+struct SerialContext {
+    input: Arc<Mutex<Input>>,
+    stop_flag: Arc<AtomicBool>,
 }
 
 struct App<'a> {
@@ -75,6 +87,7 @@ struct App<'a> {
     custom_shader: Option<String>,
     context: Arc<SocketContext>,
     socket_thread: Option<JoinHandle<()>>,
+    serial_thread: Option<JoinHandle<()>>,
     window: Option<Arc<Window>>,
     state: Option<State<'a>>,
 }
@@ -122,6 +135,10 @@ impl ApplicationHandler for App<'_> {
             WindowEvent::CloseRequested => {
                 self.context.stop_flag.store(true, Ordering::Release);
                 if let Some(t) = self.socket_thread.take() {
+                    mem::drop(t.join());
+                }
+
+                if let Some(t) = self.serial_thread.take() {
                     mem::drop(t.join());
                 }
 
@@ -189,10 +206,13 @@ async fn run(args: &Args, custom_shader: Option<String>) {
             );
         });
 
+    let input: Arc<Mutex<Input>> = Default::default();
+    let stop_flag = Arc::new(AtomicBool::new(false));
+
     let context = Arc::new(SocketContext {
         socket,
-        input: Default::default(),
-        stop_flag: AtomicBool::new(false),
+        input: input.clone(),
+        stop_flag: stop_flag.clone(),
     });
 
     let socket_thread = Some(thread::spawn(enclose!((context) move || {
@@ -215,6 +235,94 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         }
     })));
 
+    const SERIAL_RATE: Duration = Duration::from_millis(30);
+
+    let mut serial_port = SerialPortBuilder::new()
+        .baud_rate(115200)
+        .read_timeout(Some(Duration::from_millis(100)))
+        .open("/dev/ttyUSB0")
+        .expect("failed to open serial port");
+
+    let serial_context = Arc::new(SerialContext {
+        input: input.clone(),
+        stop_flag,
+    });
+
+    // TODO(Sirius902) Attribute logic to NintendoSpy.
+    let serial_thread = Some(thread::spawn({
+        let context = serial_context.clone();
+        move || {
+            fn read_byte(packet: &[u8], offset: usize) -> u8 {
+                let mut b = 0u8;
+                for i in 0..8 {
+                    if (packet[i + offset] & 0xF) != 0 {
+                        b |= 1 << (7 - i);
+                    }
+                }
+                b
+            }
+
+            let mut data = Vec::new();
+            let mut first_iter = true;
+
+            while !context.stop_flag.load(Ordering::Acquire) {
+                if first_iter {
+                    first_iter = false;
+                } else {
+                    // FUTURE(Sirius902) Asynchronously wait?
+                    std::thread::sleep(SERIAL_RATE);
+                }
+
+                let bytes_to_read = serial_port.bytes_to_read().expect("bytes to read");
+                if bytes_to_read == 0 {
+                    continue;
+                }
+
+                data.resize(bytes_to_read.try_into().expect("u32 fits in usize"), 0);
+                let _ = serial_port.read(&mut data).expect("read");
+
+                let Some(last_split_pos) = data.iter().rposition(|b| *b == 0xA) else {
+                    continue;
+                };
+                let Some(snd_last_split_pos) =
+                    data.iter().take(last_split_pos).rposition(|b| *b == 0xA)
+                else {
+                    continue;
+                };
+
+                let packet_start = snd_last_split_pos + 1;
+                let packet = &data[packet_start..last_split_pos];
+
+                if packet.len() == 64 {
+                    let mut input = context.input.lock().unwrap();
+                    *input = Input {
+                        button_a: packet[7] != 0,
+                        button_b: packet[6] != 0,
+                        button_x: packet[5] != 0,
+                        button_y: packet[4] != 0,
+
+                        button_left: packet[15] != 0,
+                        button_right: packet[14] != 0,
+                        button_down: packet[13] != 0,
+                        button_up: packet[12] != 0,
+
+                        button_start: packet[3] != 0,
+                        button_z: packet[11] != 0,
+                        button_r: packet[10] != 0,
+                        button_l: packet[9] != 0,
+
+                        main_stick: Stick::new(read_byte(packet, 16), read_byte(packet, 16 + 8)),
+                        c_stick: Stick::new(read_byte(packet, 16 + 16), read_byte(packet, 16 + 24)),
+                        left_trigger: read_byte(packet, 16 + 32),
+                        right_trigger: read_byte(packet, 16 + 40),
+                    };
+                } else {
+                    warn!("Unsupported serial packet length: {}", packet.len());
+                }
+            }
+        }
+    }));
+
     let event_loop = EventLoop::new().unwrap();
     let mut app = App {
         version_string: env!("GCVIEWER_VERSION").to_string(),
@@ -222,6 +330,7 @@ async fn run(args: &Args, custom_shader: Option<String>) {
         custom_shader,
         context,
         socket_thread,
+        serial_thread,
         window: Default::default(),
         state: Default::default(),
     };
