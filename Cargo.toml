@@ -28,6 +28,7 @@ gcinput = { git = "https://github.com/Sirius902/gcfeeder", tag = "v3.0.1" }
 image = { version = "0.25", features = ["png"], default-features = false }
 pollster = "0.4"
 serde = { version = "1", features = ["derive"] }
+serialport5 = "5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 wgpu = "24"
