@@ -1,7 +1,6 @@
-use std::mem;
-
 pub mod camera;
 pub mod control;
+pub mod services;
 pub mod state;
 
 #[rustfmt::skip]
@@ -46,7 +45,7 @@ impl Vertex {
 
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &Self::ATTRIBS,
         }

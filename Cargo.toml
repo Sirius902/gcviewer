@@ -10,30 +10,33 @@ version = "0.1.0"
 [build-dependencies]
 git2 = { version = "0.20", default-features = false, optional = true }
 
-[target.'cfg(windows)'.build-dependencies]
+[dependencies]
+bincode = "1"
+bytemuck = { version = "1", features = ["derive"] }
+cgmath = "0.18"
+clap = { version = "4", features = ["derive"] }
+console-subscriber = { version = "0.4", optional = true }
+directories = "6"
+gcinput = { git = "https://github.com/Sirius902/gcfeeder", rev = "7794447" }
+image = { version = "0.25", features = ["png"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serialport5 = "5"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+wgpu = "25"
+winit = "0.30"
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
 embed-resource = "3"
 image = { version = "0.25", features = [
   "png",
   "ico",
 ], default-features = false }
 
-[dependencies]
-bincode = "1"
-bytemuck = { version = "1", features = ["derive"] }
-cgmath = "0.18"
-clap = { version = "4", features = ["derive"] }
-directories = "6"
-enclose = "1"
-gcinput = { git = "https://github.com/Sirius902/gcfeeder", tag = "v3.0.1" }
-image = { version = "0.25", features = ["png"], default-features = false }
-pollster = "0.4"
-serde = { version = "1", features = ["derive"] }
-serialport5 = "5"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-wgpu = "24"
-winit = "0.30"
-
 [features]
 default = ["git-version"]
 git-version = ["dep:git2"]
+tokio-console = ["dep:console-subscriber"]

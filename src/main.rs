@@ -1,17 +1,12 @@
-use std::io::Read;
-use std::net::UdpSocket;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-use std::time::Duration;
-use std::{env, fs, mem};
+use std::sync::Arc;
 
 use clap::Parser;
-use enclose::enclose;
-use gcinput::{Input, Stick};
+use gcinput::Input;
+use gcviewer::services;
 use gcviewer::state::State;
-use serialport5::SerialPortBuilder;
-use tracing::warn;
+use tokio::sync::{oneshot, watch};
+use tokio_util::task::TaskTracker;
+use tracing::{error, info, warn};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 use winit::application::ApplicationHandler;
@@ -23,40 +18,51 @@ use winit::window::{Icon, Window, WindowAttributes};
 const ICON_FILE: &[u8] = include_bytes!("../resource/icon.png");
 
 fn main() {
-    let exe_path = env::current_exe().expect("Failed to get current exe path");
-    env::set_current_dir(
-        exe_path
-            .parent()
-            .expect("Failed to get current exe parent path"),
-    )
-    .expect("Failed to set current working directory");
+    let _guard = setup_logging();
 
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                EnvFilter::builder()
-                    .parse(["gcviewer=debug"].join(","))
-                    .expect("env filter string parses")
-            }),
-        ))
-        .init();
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf));
 
     let args = Args::parse();
-    pollster::block_on(run(&args, load_custom_shader()));
+
+    let (tx_app, rx_app) = oneshot::channel();
+    let (tx_close, rx_close) = oneshot::channel();
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("build tokio runtime");
+
+    rt.spawn(async move {
+        run(
+            &args,
+            tx_app,
+            rx_close,
+            load_custom_shader(exe_dir.as_ref()).await,
+        )
+        .await;
+    });
+
+    let mut app = App {
+        tx_close: Some(tx_close),
+        ..rx_app.blocking_recv().expect("recv app")
+    };
+    let event_loop = EventLoop::new().expect("create event loop");
+    let _ = event_loop.run_app(&mut app);
 }
 
-fn load_custom_shader() -> Option<String> {
-    fs::File::open("shader.wgsl")
-        .ok()
-        .or_else(|| {
-            directories::BaseDirs::new()
-                .map(|dirs| dirs.config_dir().join("gcviewer").join("shader.wgsl"))
-                .and_then(|path| fs::File::open(path).ok())
-        })
-        .and_then(|mut f| {
-            let mut s = String::new();
-            f.read_to_string(&mut s).map(|_| s).ok()
-        })
+async fn load_custom_shader(exe_dir: Option<impl AsRef<std::path::Path>>) -> Option<String> {
+    if let Some(exe_dir) = exe_dir {
+        if let Ok(shader) = tokio::fs::read_to_string(exe_dir.as_ref().join("shader.wgsl")).await {
+            return Some(shader);
+        }
+    }
+
+    let path = directories::BaseDirs::new()
+        .map(|dirs| dirs.config_dir().join("gcviewer").join("shader.wgsl"))?;
+
+    tokio::fs::read_to_string(path).await.ok()
 }
 
 #[derive(Parser)]
@@ -70,24 +76,13 @@ struct Args {
     port: u16,
 }
 
-struct SocketContext {
-    socket: UdpSocket,
-    input: Arc<Mutex<Input>>,
-    stop_flag: Arc<AtomicBool>,
-}
-
-struct SerialContext {
-    input: Arc<Mutex<Input>>,
-    stop_flag: Arc<AtomicBool>,
-}
-
 struct App<'a> {
+    rt: tokio::runtime::Handle,
+    tx_close: Option<oneshot::Sender<oneshot::Sender<()>>>,
+    rx_socket_input: watch::Receiver<Option<Input>>,
     version_string: String,
     icon: Option<Icon>,
     custom_shader: Option<String>,
-    context: Arc<SocketContext>,
-    socket_thread: Option<JoinHandle<()>>,
-    serial_thread: Option<JoinHandle<()>>,
     window: Option<Arc<Window>>,
     state: Option<State<'a>>,
 }
@@ -103,16 +98,16 @@ impl ApplicationHandler for App<'_> {
                             width: 512,
                             height: 256,
                         })
-                        .with_window_icon(Some(self.icon.take().unwrap())),
+                        .with_window_icon(Some(self.icon.take().expect("icon exists"))),
                 )
-                .unwrap(),
+                .expect("create window"),
         );
 
         self.window = Some(window.clone());
-        self.state = Some(pollster::block_on(State::new(
-            window.clone(),
-            self.custom_shader.take(),
-        )));
+        self.state = Some(
+            self.rt
+                .block_on(State::new(window, self.custom_shader.take())),
+        );
     }
 
     fn window_event(
@@ -133,19 +128,19 @@ impl ApplicationHandler for App<'_> {
 
         match event {
             WindowEvent::CloseRequested => {
-                self.context.stop_flag.store(true, Ordering::Release);
-                if let Some(t) = self.socket_thread.take() {
-                    mem::drop(t.join());
-                }
+                let (tx, rx) = oneshot::channel();
+                self.tx_close
+                    .take()
+                    .expect("close channel exists")
+                    .send(tx)
+                    .expect("send close");
 
-                if let Some(t) = self.serial_thread.take() {
-                    mem::drop(t.join());
-                }
+                rx.blocking_recv().expect("wait for closed");
 
                 // FUTURE(Sirius902) Explicitly drop state before exiting event loop otherwise we
                 // crash in some wayland code. Fix the surface lifetimes in [`State`] so that this won't happen?
                 if let Some(state) = self.state.take() {
-                    mem::drop(state);
+                    drop(state);
                 }
 
                 event_loop.exit();
@@ -157,16 +152,15 @@ impl ApplicationHandler for App<'_> {
                 state.resize(window.inner_size());
             }
             WindowEvent::RedrawRequested => {
-                {
-                    let input = self.context.input.lock().unwrap();
-                    state.update(&input);
-                }
+                // TODO(Sirius902) Use actual input from socket / serial.
+                let input = *self.rx_socket_input.borrow_and_update();
+                state.update(&input.unwrap_or_default());
 
                 match state.render() {
                     Ok(()) => {}
                     Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
                     Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
-                    Err(e) => tracing::error!("{:?}", e),
+                    Err(err) => warn!("{err:?}"),
                 }
             }
             _ => {}
@@ -174,165 +168,118 @@ impl ApplicationHandler for App<'_> {
     }
 
     fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-        let window = self.window.as_ref().unwrap();
+        let window = self.window.as_ref().expect("window exists");
 
         let PhysicalSize { width, height } = window.inner_size();
         if width != 0 && height != 0 {
             window.request_redraw();
-        } else {
-            thread::sleep(Duration::from_millis(16));
         }
     }
 }
 
-async fn run(args: &Args, custom_shader: Option<String>) {
+async fn run(
+    args: &Args,
+    tx_app: oneshot::Sender<App<'_>>,
+    rx_close: oneshot::Receiver<oneshot::Sender<()>>,
+    custom_shader: Option<String>,
+) {
+    let task_tracker = TaskTracker::new();
+
+    let socket_service = services::socket::start(&task_tracker, args.port);
+    let serial_service = services::serial::start(&task_tracker);
+
+    task_tracker.close();
+
     let icon = {
-        let icon = image::load_from_memory(ICON_FILE).unwrap();
+        let icon = image::load_from_memory(ICON_FILE).expect("load icon");
         let rgba = icon.into_rgba8();
         let (width, height) = rgba.dimensions();
-        Icon::from_rgba(rgba.to_vec(), width, height).unwrap()
+        Icon::from_rgba(rgba.to_vec(), width, height).expect("icon from rgba")
     };
 
-    const SOCK_TIMEOUT: Duration = Duration::from_millis(100);
-
-    let socket = UdpSocket::bind("0.0.0.0:0")
-        .and_then(|s| s.connect(("127.0.0.1", args.port)).map(|()| s))
-        .and_then(|s| s.set_read_timeout(Some(SOCK_TIMEOUT)).map(|()| s))
-        .and_then(|s| s.set_write_timeout(Some(SOCK_TIMEOUT)).map(|()| s))
-        .unwrap_or_else(|e| {
-            panic!(
-                "Failed to connect to input server on localhost:{}: {}",
-                args.port, e
-            );
-        });
-
-    let input: Arc<Mutex<Input>> = Default::default();
-    let stop_flag = Arc::new(AtomicBool::new(false));
-
-    let context = Arc::new(SocketContext {
-        socket,
-        input: input.clone(),
-        stop_flag: stop_flag.clone(),
-    });
-
-    let socket_thread = Some(thread::spawn(enclose!((context) move || {
-        let input_size = bincode::serialized_size(&Input::default()).unwrap();
-        let mut data = vec![0u8; input_size as usize];
-
-        while !context.stop_flag.load(Ordering::Acquire) {
-            let _ = context.socket.send(&[]);
-
-            if let Ok(received) = context.socket.recv(&mut data) {
-                if received == data.len() {
-                    let new_input = bincode::deserialize(&data).unwrap();
-                    let mut input = context.input.lock().unwrap();
-                    *input = new_input;
-                } else {
-                    tracing::error!("Socket received incomplete data of size {}", received);
-                    break;
-                }
-            }
-        }
-    })));
-
-    const SERIAL_RATE: Duration = Duration::from_millis(30);
-
-    let mut serial_port = SerialPortBuilder::new()
-        .baud_rate(115200)
-        .read_timeout(Some(Duration::from_millis(100)))
-        .open("/dev/ttyUSB0")
-        .expect("failed to open serial port");
-
-    let serial_context = Arc::new(SerialContext {
-        input: input.clone(),
-        stop_flag,
-    });
-
-    // TODO(Sirius902) Attribute logic to NintendoSpy.
-    let serial_thread = Some(thread::spawn({
-        let context = serial_context.clone();
-        move || {
-            fn read_byte(packet: &[u8], offset: usize) -> u8 {
-                let mut b = 0u8;
-                for i in 0..8 {
-                    if (packet[i + offset] & 0xF) != 0 {
-                        b |= 1 << (7 - i);
-                    }
-                }
-                b
-            }
-
-            let mut data = Vec::new();
-            let mut first_iter = true;
-
-            while !context.stop_flag.load(Ordering::Acquire) {
-                if first_iter {
-                    first_iter = false;
-                } else {
-                    // FUTURE(Sirius902) Asynchronously wait?
-                    std::thread::sleep(SERIAL_RATE);
-                }
-
-                let bytes_to_read = serial_port.bytes_to_read().expect("bytes to read");
-                if bytes_to_read == 0 {
-                    continue;
-                }
-
-                data.resize(bytes_to_read.try_into().expect("u32 fits in usize"), 0);
-                let _ = serial_port.read(&mut data).expect("read");
-
-                let Some(last_split_pos) = data.iter().rposition(|b| *b == 0xA) else {
-                    continue;
-                };
-                let Some(snd_last_split_pos) =
-                    data.iter().take(last_split_pos).rposition(|b| *b == 0xA)
-                else {
-                    continue;
-                };
-
-                let packet_start = snd_last_split_pos + 1;
-                let packet = &data[packet_start..last_split_pos];
-
-                if packet.len() == 64 {
-                    let mut input = context.input.lock().unwrap();
-                    *input = Input {
-                        button_a: packet[7] != 0,
-                        button_b: packet[6] != 0,
-                        button_x: packet[5] != 0,
-                        button_y: packet[4] != 0,
-
-                        button_left: packet[15] != 0,
-                        button_right: packet[14] != 0,
-                        button_down: packet[13] != 0,
-                        button_up: packet[12] != 0,
-
-                        button_start: packet[3] != 0,
-                        button_z: packet[11] != 0,
-                        button_r: packet[10] != 0,
-                        button_l: packet[9] != 0,
-
-                        main_stick: Stick::new(read_byte(packet, 16), read_byte(packet, 16 + 8)),
-                        c_stick: Stick::new(read_byte(packet, 16 + 16), read_byte(packet, 16 + 24)),
-                        left_trigger: read_byte(packet, 16 + 32),
-                        right_trigger: read_byte(packet, 16 + 40),
-                    };
-                } else {
-                    warn!("Unsupported serial packet length: {}", packet.len());
-                }
-            }
-        }
-    }));
-
-    let event_loop = EventLoop::new().unwrap();
-    let mut app = App {
+    let app = App {
+        rt: tokio::runtime::Handle::current(),
+        tx_close: None,
+        rx_socket_input: socket_service.watch_input(),
         version_string: env!("GCVIEWER_VERSION").to_string(),
         icon: Some(icon),
         custom_shader,
-        context,
-        socket_thread,
-        serial_thread,
         window: Default::default(),
         state: Default::default(),
     };
-    let _ = event_loop.run_app(&mut app);
+
+    let app_res = tx_app.send(app);
+
+    if app_res.is_ok() {
+        tokio::select! {
+            // FUTURE(Sirius902) Should we handle any other signals here?
+            res = tokio::signal::ctrl_c() => {
+                if let Err(err) = res {
+                    warn!("Failed to wait for ctrl+c signal: {err}");
+                }
+            }
+            tx = rx_close => {
+                if let Ok(tx) = tx {
+                    tx.send(()).expect("sending closed signal");
+                }
+                info!("Handled close signal!");
+            }
+            _ = task_tracker.wait() => {},
+        }
+    } else {
+        error!("Failed to send app");
+    }
+
+    info!("Stopping serial service...");
+    serial_service.stop().await;
+    info!("Serial service stopped!");
+
+    info!("Stopping socket service...");
+    socket_service.stop().await;
+    info!("Socket service stopped!");
+}
+
+fn setup_logging() -> Option<tracing_appender::non_blocking::WorkerGuard> {
+    let builder = tracing_subscriber::registry();
+
+    #[cfg(feature = "tokio-console")]
+    let builder = builder.with(console_subscriber::spawn().with_filter({
+        use tracing::level_filters::LevelFilter;
+
+        EnvFilter::builder()
+            .with_default_directive(LevelFilter::DEBUG.into())
+            .parse("tokio=trace,runtime=trace")
+            .expect("tokio-console env filter string parses")
+    }));
+
+    let env_filter = || {
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            EnvFilter::builder()
+                .parse(["gcviewer=trace"].join(","))
+                .expect("env filter string parses")
+        })
+    };
+
+    let builder = builder.with(tracing_subscriber::fmt::layer().with_filter(env_filter()));
+
+    let file_layer = directories::BaseDirs::new()
+        .map(|dirs| dirs.cache_dir().join("gcviewer").join("logs"))
+        .map(|logs_dir| {
+            let file_appender = tracing_appender::rolling::daily(logs_dir, "gcviewer.log");
+            let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+            (
+                tracing_subscriber::fmt::layer()
+                    .with_writer(non_blocking)
+                    .with_filter(env_filter()),
+                guard,
+            )
+        });
+
+    if let Some((file_layer, guard)) = file_layer {
+        builder.with(file_layer).init();
+        Some(guard)
+    } else {
+        builder.init();
+        None
+    }
 }

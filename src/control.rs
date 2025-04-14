@@ -1,5 +1,3 @@
-use std::mem;
-
 #[derive(Debug)]
 pub struct Instance {
     pub control: Control,
@@ -79,7 +77,7 @@ impl InstanceRaw {
 
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &Self::ATTRIBS,
         }
