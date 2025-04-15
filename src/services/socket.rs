@@ -44,8 +44,9 @@ async fn run(
     let mut socket_opt: Option<Arc<UdpSocket>> = None;
     let mut each_second = tokio::time::interval(Duration::from_secs(1));
 
+    // FUTURE(Sirius902) This seems brittle, send json or use protobufs?
     let input_size =
-        usize::try_from(bincode::serialized_size(&Input::default()).expect("Input size"))
+        usize::try_from(bincode::serialized_size(&Some(Input::default())).expect("Input size"))
             .expect("Input size fits in usize");
     let mut data = vec![0u8; input_size];
 
@@ -74,7 +75,7 @@ async fn run(
                 match res {
                     Ok(len) => {
                         if len == data.len() {
-                            let new_input = match bincode::deserialize(&data) {
+                            let new_input: Option<Input> = match bincode::deserialize(&data) {
                                 Ok(input) => input,
                                 Err(err) => {
                                     warn!("Failed to deserialize input: {err}");
