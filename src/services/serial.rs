@@ -1,7 +1,11 @@
+use std::path::Path;
+use std::time::Duration;
+
 use gcinput::Input;
+use serialport5::{SerialPort, SerialPortBuilder};
 use tokio::sync::{oneshot, watch};
 use tokio_util::task::TaskTracker;
-use tracing::info;
+use tracing::{info, warn};
 
 pub struct Service {
     tx_shutdown: oneshot::Sender<oneshot::Sender<()>>,
@@ -36,6 +40,12 @@ async fn run(
     mut rx_shutdown: oneshot::Receiver<oneshot::Sender<()>>,
     tx_input: watch::Sender<Option<Input>>,
 ) {
+    let mut serial_opt: Option<SerialPort> = None;
+
+    let mut each_second = tokio::time::interval(Duration::from_secs(1));
+
+    // TODO(Sirius902) If there is a serial connection, asynchronously wait on the fd for data and
+    // isolate a single input message.
     loop {
         tokio::select! {
             tx = &mut rx_shutdown => {
@@ -44,6 +54,26 @@ async fn run(
                 }
                 info!("Serial service finished");
                 break;
+            }
+            _ = each_second.tick() => {
+                if serial_opt.is_none() {
+                    // TODO(Sirius902) Don't hardcode serial path.
+                    let path = Path::new("/dev/ttyUSB0");
+
+                    let serial = SerialPortBuilder::new()
+                        .baud_rate(115200)
+                        .open(path);
+
+                    match serial {
+                        Ok(serial) => {
+                            info!("Connected to serial port {}!", path.display());
+                            serial_opt = Some(serial);
+                        }
+                        Err(err) => {
+                            warn!("Failed to connect to serial port {}: {err}", path.display());
+                        }
+                    }
+                }
             }
         }
     }
