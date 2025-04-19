@@ -155,8 +155,12 @@ impl ApplicationHandler for App<'_> {
                 state.resize(window.inner_size());
             }
             WindowEvent::RedrawRequested => {
-                // TODO(Sirius902) Use actual input from socket / serial.
-                let input = *self.rx_socket_input.borrow_and_update();
+                // FUTURE(Sirius902) Give the user the option to select an input source.
+                let input = (*self.rx_socket_input.borrow_and_update())
+                    .or_else(|| *self.rx_serial_input.borrow_and_update());
+
+                // FUTURE(Sirius902) Pass along the option and indicate there is no connection
+                // visually.
                 state.update(&input.unwrap_or_default());
 
                 match state.render() {
