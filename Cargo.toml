@@ -20,9 +20,10 @@ directories = "6"
 gcinput = { git = "https://github.com/Sirius902/gcfeeder", rev = "7794447" }
 image = { version = "0.25", features = ["png"], default-features = false }
 serde = { version = "1", features = ["derive"] }
-serialport5 = "5"
 tokio = { version = "1", features = ["full"] }
-tokio-util = { version = "0.7", features = ["rt"] }
+tokio-serial = "5"
+tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["codec", "rt"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

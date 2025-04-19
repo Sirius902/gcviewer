@@ -80,6 +80,7 @@ struct App<'a> {
     rt: tokio::runtime::Handle,
     tx_close: Option<oneshot::Sender<oneshot::Sender<()>>>,
     rx_socket_input: watch::Receiver<Option<Input>>,
+    rx_serial_input: watch::Receiver<Option<Input>>,
     version_string: String,
     icon: Option<Icon>,
     custom_shader: Option<String>,
@@ -126,6 +127,8 @@ impl ApplicationHandler for App<'_> {
             return;
         }
 
+        // TODO(Sirius902) We need a way for the tokio runtime to inject an exit event. Event loop
+        // proxy?
         match event {
             WindowEvent::CloseRequested => {
                 let (tx, rx) = oneshot::channel();
@@ -201,6 +204,7 @@ async fn run(
         rt: tokio::runtime::Handle::current(),
         tx_close: None,
         rx_socket_input: socket_service.watch_input(),
+        rx_serial_input: serial_service.watch_input(),
         version_string: env!("GCVIEWER_VERSION").to_string(),
         icon: Some(icon),
         custom_shader,
