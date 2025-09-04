@@ -7,7 +7,7 @@ use winit::window::Window;
 
 use crate::camera::{Camera, CameraUniform};
 use crate::control::{Button, Control, Instance, InstanceRaw, Misc, Scale, Stick, Trigger};
-use crate::{Vertex, INDICES, VERTICES};
+use crate::{INDICES, VERTICES, Vertex};
 
 const BEAN_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/bean.png");
 const Z_BUTTON_SDF_IMAGE: &[u8] = include_bytes!("../resource/sdf/z-button.png");
