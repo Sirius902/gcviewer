@@ -150,15 +150,16 @@ impl Decoder for LineCodec {
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         if let Some(start) = src.iter().position(|b| *b == b'\n')
-            && let Some(end) = src.iter().skip(start + 1).position(|b| *b == b'\n') {
-                let end = start + 1 + end;
+            && let Some(end) = src.iter().skip(start + 1).position(|b| *b == b'\n')
+        {
+            let end = start + 1 + end;
 
-                let _ = src.split_to(start + 1);
-                let packet = src.split_to(end - start - 1);
-                let _ = src.split_to(1);
+            let _ = src.split_to(start + 1);
+            let packet = src.split_to(end - start - 1);
+            let _ = src.split_to(1);
 
-                return Ok(Some(packet.to_vec()));
-            }
+            return Ok(Some(packet.to_vec()));
+        }
 
         Ok(None)
     }

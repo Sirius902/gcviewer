@@ -54,9 +54,10 @@ fn main() {
 
 async fn load_custom_shader(exe_dir: Option<impl AsRef<std::path::Path>>) -> Option<String> {
     if let Some(exe_dir) = exe_dir
-        && let Ok(shader) = tokio::fs::read_to_string(exe_dir.as_ref().join("shader.wgsl")).await {
-            return Some(shader);
-        }
+        && let Ok(shader) = tokio::fs::read_to_string(exe_dir.as_ref().join("shader.wgsl")).await
+    {
+        return Some(shader);
+    }
 
     let path = directories::BaseDirs::new()
         .map(|dirs| dirs.config_dir().join("gcviewer").join("shader.wgsl"))?;
