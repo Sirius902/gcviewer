@@ -154,7 +154,7 @@
 
             packages = [
               pkgs.lldb
-              pkgs.rust-analyzer-nightly
+              pkgs.rust-analyzer
               pkgs.taplo-cli
               pkgs.just
             ];
