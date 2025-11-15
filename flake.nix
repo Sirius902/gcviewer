@@ -38,7 +38,7 @@
 
         toolchain = fenix.packages.${system}.fromToolchainFile {
           file = ./rust-toolchain.toml;
-          sha256 = "sha256-TszzkjGsORUMkjiG610k9YgzM1vN0hjY78D8nIExljk=";
+          sha256 = "sha256-W40JpXO37SmKRpNDcDHUZ7nslk7A8SP0ja2BEnymCps=";
         };
 
         craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
@@ -142,7 +142,7 @@
             program = writeShellScriptBin "fmt" ''
               cargo fmt
               taplo fmt
-              nix fmt
+              nix fmt .
             '';
           };
 
@@ -155,7 +155,7 @@
             packages = [
               pkgs.lldb
               pkgs.rust-analyzer
-              pkgs.taplo-cli
+              pkgs.taplo
               pkgs.just
             ];
 

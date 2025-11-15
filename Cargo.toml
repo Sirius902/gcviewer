@@ -15,7 +15,7 @@ bincode = "1"
 bytemuck = { version = "1", features = ["derive"] }
 cgmath = "0.18"
 clap = { version = "4", features = ["derive"] }
-console-subscriber = { version = "0.4", optional = true }
+console-subscriber = { version = "0.5", optional = true }
 directories = "6"
 gcinput = { git = "https://github.com/Sirius902/gcfeeder", rev = "7794447" }
 image = { version = "0.25", features = ["png"], default-features = false }
